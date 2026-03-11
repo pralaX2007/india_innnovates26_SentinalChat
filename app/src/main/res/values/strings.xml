@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">HackSecure 2026</string>
+    <string name="create_session">Create Session</string>
+    <string name="join_session">Join Session</string>
+    <string name="public_key_fingerprint">Public Key Fingerprint:</string>
+    <string name="continue_btn">Continue</string>
+    <string name="waiting_for_peers">Waiting for peers...</string>
+    <string name="discover_peers">Discover Peers</string>
+    <string name="send">Send</string>
+    <string name="type_message">Type a message...</string>
+</resources>
