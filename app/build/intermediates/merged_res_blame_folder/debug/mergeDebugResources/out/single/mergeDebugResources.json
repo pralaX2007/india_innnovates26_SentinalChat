@@ -1,19 +1,7 @@
 [
     {
-        "merged": "/Users/naitikkanha/.gradle/daemon/9.0.0/com.hacksecure.p2p.app-debug-32:/mipmap-anydpi-v26_ic_launcher_round.xml.flat",
-        "source": "/Users/naitikkanha/.gradle/daemon/9.0.0/com.hacksecure.p2p.app-main-34:/mipmap-anydpi-v26/ic_launcher_round.xml"
-    },
-    {
-        "merged": "/Users/naitikkanha/.gradle/daemon/9.0.0/com.hacksecure.p2p.app-debug-32:/layout_item_message.xml.flat",
-        "source": "/Users/naitikkanha/.gradle/daemon/9.0.0/com.hacksecure.p2p.app-main-34:/layout/item_message.xml"
-    },
-    {
         "merged": "/Users/naitikkanha/.gradle/daemon/9.0.0/com.hacksecure.p2p.app-debug-32:/layout_activity_key_setup.xml.flat",
         "source": "/Users/naitikkanha/.gradle/daemon/9.0.0/com.hacksecure.p2p.app-main-34:/layout/activity_key_setup.xml"
-    },
-    {
-        "merged": "/Users/naitikkanha/.gradle/daemon/9.0.0/com.hacksecure.p2p.app-debug-32:/layout_activity_start_session.xml.flat",
-        "source": "/Users/naitikkanha/.gradle/daemon/9.0.0/com.hacksecure.p2p.app-main-34:/layout/activity_start_session.xml"
     },
     {
         "merged": "/Users/naitikkanha/.gradle/daemon/9.0.0/com.hacksecure.p2p.app-debug-32:/layout_item_peer.xml.flat",
@@ -22,6 +10,26 @@
     {
         "merged": "/Users/naitikkanha/.gradle/daemon/9.0.0/com.hacksecure.p2p.app-debug-32:/drawable_ic_launcher_foreground.xml.flat",
         "source": "/Users/naitikkanha/.gradle/daemon/9.0.0/com.hacksecure.p2p.app-main-34:/drawable/ic_launcher_foreground.xml"
+    },
+    {
+        "merged": "/Users/naitikkanha/.gradle/daemon/9.0.0/com.hacksecure.p2p.app-debug-32:/mipmap_ic_launcher_round.xml.flat",
+        "source": "/Users/naitikkanha/.gradle/daemon/9.0.0/com.hacksecure.p2p.app-main-34:/mipmap/ic_launcher_round.xml"
+    },
+    {
+        "merged": "/Users/naitikkanha/.gradle/daemon/9.0.0/com.hacksecure.p2p.app-debug-32:/mipmap-anydpi-v26_ic_launcher_round.xml.flat",
+        "source": "/Users/naitikkanha/.gradle/daemon/9.0.0/com.hacksecure.p2p.app-main-34:/mipmap-anydpi-v26/ic_launcher_round.xml"
+    },
+    {
+        "merged": "/Users/naitikkanha/.gradle/daemon/9.0.0/com.hacksecure.p2p.app-debug-32:/layout_item_message.xml.flat",
+        "source": "/Users/naitikkanha/.gradle/daemon/9.0.0/com.hacksecure.p2p.app-main-34:/layout/item_message.xml"
+    },
+    {
+        "merged": "/Users/naitikkanha/.gradle/daemon/9.0.0/com.hacksecure.p2p.app-debug-32:/mipmap_ic_launcher.xml.flat",
+        "source": "/Users/naitikkanha/.gradle/daemon/9.0.0/com.hacksecure.p2p.app-main-34:/mipmap/ic_launcher.xml"
+    },
+    {
+        "merged": "/Users/naitikkanha/.gradle/daemon/9.0.0/com.hacksecure.p2p.app-debug-32:/layout_activity_start_session.xml.flat",
+        "source": "/Users/naitikkanha/.gradle/daemon/9.0.0/com.hacksecure.p2p.app-main-34:/layout/activity_start_session.xml"
     },
     {
         "merged": "/Users/naitikkanha/.gradle/daemon/9.0.0/com.hacksecure.p2p.app-debug-32:/layout_activity_chat.xml.flat",

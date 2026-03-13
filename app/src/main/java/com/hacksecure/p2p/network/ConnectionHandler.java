@@ -24,6 +24,10 @@ public class ConnectionHandler {
         void onConnectionLost();
     }
 
+    public void setListener(MessageReceiveListener listener) {
+        this.listener = listener;
+    }
+
     public void startServer(MessageReceiveListener listener) {
         this.listener = listener;
         executor.execute(() -> {
