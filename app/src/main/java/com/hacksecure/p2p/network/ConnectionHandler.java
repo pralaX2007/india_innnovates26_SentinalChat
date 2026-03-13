@@ -19,7 +19,12 @@ public class ConnectionHandler {
     private final ExecutorService executor = Executors.newCachedThreadPool();
     private MessageReceiveListener listener;
 
+    public void setListener(MessageReceiveListener listener) {
+        this.listener = listener;
+    }
+
     public interface MessageReceiveListener {
+        void onConnected();
         void onMessageReceived(byte[] rawData);
         void onConnectionLost();
     }
@@ -31,10 +36,11 @@ public class ConnectionHandler {
                 serverSocket = new ServerSocket(PORT);
                 Logger.d("Server started on port " + PORT);
                 socket = serverSocket.accept();
+                if (this.listener != null) this.listener.onConnected();
                 handleConnection();
             } catch (IOException e) {
                 Logger.e("Server error: " + e.getMessage());
-                if (listener != null) listener.onConnectionLost();
+                if (this.listener != null) this.listener.onConnectionLost();
             }
         });
     }
@@ -45,10 +51,11 @@ public class ConnectionHandler {
             try {
                 socket = new Socket(GROUP_OWNER_IP, PORT);
                 Logger.d("Connected to host " + GROUP_OWNER_IP);
+                if (this.listener != null) this.listener.onConnected();
                 handleConnection();
             } catch (IOException e) {
                 Logger.e("Client error: " + e.getMessage());
-                if (listener != null) listener.onConnectionLost();
+                if (this.listener != null) this.listener.onConnectionLost();
             }
         });
     }

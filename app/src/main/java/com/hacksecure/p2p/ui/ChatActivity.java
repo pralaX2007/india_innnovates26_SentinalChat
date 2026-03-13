@@ -92,6 +92,12 @@ public class ChatActivity extends AppCompatActivity implements MessageTransport.
         }
 
         @Override
+        public void onConnected() {
+            Logger.d("Connected, sending public key...");
+            sendPublicKey();
+        }
+
+        @Override
         public void onMessageReceived(byte[] rawData) {
             if (!isKeyExchanged) {
                 try {
@@ -113,8 +119,7 @@ public class ChatActivity extends AppCompatActivity implements MessageTransport.
                         // Switch to normal message transport
                         connectionHandler.setListener(messageTransport);
 
-                        // If we haven't sent our key yet (as client usually), send it now.
-                        // Actually, both should send immediately upon connection.
+                        // If we haven't sent our key yet, send it now.
                         if (!publicKeySent) {
                             sendPublicKey();
                         }
@@ -131,6 +136,7 @@ public class ChatActivity extends AppCompatActivity implements MessageTransport.
         }
 
         void sendPublicKey() {
+            if (publicKeySent) return;
             String myKey = keyManager.publicKeyToBase64();
             if (myKey != null) {
                 connectionHandler.sendRawBytes(myKey.getBytes(StandardCharsets.UTF_8));

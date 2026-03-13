@@ -30,6 +30,11 @@ public class MessageTransport implements ConnectionHandler.MessageReceiveListene
     }
 
     @Override
+    public void onConnected() {
+        // Not used in MessageTransport
+    }
+
+    @Override
     public void onMessageReceived(byte[] rawData) {
         try {
             String json = new String(rawData, StandardCharsets.UTF_8);
