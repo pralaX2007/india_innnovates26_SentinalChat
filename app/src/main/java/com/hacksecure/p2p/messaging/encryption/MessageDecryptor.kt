@@ -1,4 +1,4 @@
-package com.sentinel.chat.messaging.service
+package com.sentinel.chat.messaging.encryption
 
 import com.sentinel.chat.crypto.ratchet.DoubleRatchet
 import com.sentinel.chat.crypto.ratchet.DoubleRatchet.EncryptedMessage
@@ -9,6 +9,12 @@ class MessageDecryptor(
     private val ratchet: DoubleRatchet
 ) {
 
+    companion object {
+        private const val IV_SIZE = 12
+        private const val MAX_HEADER = 512
+        private const val MAX_CIPHERTEXT = 64 * 1024
+    }
+
     data class NetworkMessage(
         val headerDh: String,
         val messageNumber: Int,
@@ -17,49 +23,44 @@ class MessageDecryptor(
         val ciphertext: String
     )
 
-    /**
-     * Decrypt message received from network
-     */
     fun decrypt(message: NetworkMessage): String {
 
         validate(message)
 
+        val headerBytes = Base64.getDecoder().decode(message.headerDh)
+        val ivBytes = Base64.getDecoder().decode(message.iv)
+        val cipherBytes = Base64.getDecoder().decode(message.ciphertext)
+
         val header = Header(
-            dhPublicKey = Base64.getDecoder().decode(message.headerDh),
+            dhPublicKey = headerBytes,
             messageNumber = message.messageNumber,
             previousChainLength = message.previousChainLength
         )
 
         val encryptedMessage = EncryptedMessage(
             header = header,
-            iv = Base64.getDecoder().decode(message.iv),
-            ciphertext = Base64.getDecoder().decode(message.ciphertext)
+            iv = ivBytes,
+            ciphertext = cipherBytes
         )
 
         val plaintextBytes = ratchet.decrypt(encryptedMessage)
 
-        return plaintextBytes.toString(Charsets.UTF_8)
+        return String(plaintextBytes, Charsets.UTF_8)
     }
 
-    /**
-     * Basic structural validation
-     */
     private fun validate(message: NetworkMessage) {
 
-        require(message.headerDh.isNotEmpty()) {
-            "Invalid message: missing header key"
-        }
+        require(message.headerDh.isNotEmpty())
+        require(message.ciphertext.isNotEmpty())
+        require(message.iv.isNotEmpty())
+        require(message.messageNumber >= 0)
 
-        require(message.ciphertext.isNotEmpty()) {
-            "Invalid message: empty ciphertext"
-        }
+        val headerBytes = Base64.getDecoder().decode(message.headerDh)
+        val ivBytes = Base64.getDecoder().decode(message.iv)
+        val cipherBytes = Base64.getDecoder().decode(message.ciphertext)
 
-        require(message.iv.isNotEmpty()) {
-            "Invalid message: missing IV"
-        }
-
-        require(message.messageNumber >= 0) {
-            "Invalid message number"
-        }
+        require(headerBytes.size <= MAX_HEADER)
+        require(ivBytes.size == IV_SIZE)
+        require(cipherBytes.size <= MAX_CIPHERTEXT)
     }
 }

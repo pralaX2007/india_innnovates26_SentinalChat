@@ -1,12 +1,19 @@
-package com.sentinel.chat.crypto.messaging
+package com.sentinel.chat.messaging.encryption
 
-import com.sentinel.chat.crypto.ratchet.DoubleRatchet
+import com.sentinel.chat.Protocol.Ratchet.DoubleRatchet
 import java.nio.ByteBuffer
 import java.util.Base64
 
 class MessageEncryptor(
     private val ratchet: DoubleRatchet
 ) {
+
+    companion object {
+        private const val VERSION: Byte = 1
+        private const val MAX_HEADER = 512
+        private const val MAX_CIPHERTEXT = 64 * 1024
+        private const val IV_SIZE = 12
+    }
 
     data class NetworkMessage(
         val headerDh: String,
@@ -16,10 +23,11 @@ class MessageEncryptor(
         val ciphertext: String
     )
 
-
     fun encryptMessage(plaintext: String): NetworkMessage {
 
-        val encrypted = ratchet.encrypt(plaintext.toByteArray())
+        val encrypted = ratchet.encrypt(
+            plaintext.toByteArray(Charsets.UTF_8)
+        )
 
         return NetworkMessage(
             headerDh = Base64.getEncoder().encodeToString(encrypted.header.dhPublicKey),
@@ -30,40 +38,25 @@ class MessageEncryptor(
         )
     }
 
-
-    fun decryptMessage(message: NetworkMessage): String {
-
-        val header = DoubleRatchet.Header(
-            dhPublicKey = Base64.getDecoder().decode(message.headerDh),
-            messageNumber = message.messageNumber,
-            previousChainLength = message.previousChainLength
-        )
-
-        val encrypted = DoubleRatchet.EncryptedMessage(
-            header = header,
-            iv = Base64.getDecoder().decode(message.iv),
-            ciphertext = Base64.getDecoder().decode(message.ciphertext)
-        )
-
-        val plaintextBytes = ratchet.decrypt(encrypted)
-
-        return String(plaintextBytes)
-    }
-
-
     fun serialize(message: NetworkMessage): ByteArray {
 
         val headerBytes = Base64.getDecoder().decode(message.headerDh)
         val ivBytes = Base64.getDecoder().decode(message.iv)
         val cipherBytes = Base64.getDecoder().decode(message.ciphertext)
 
+        require(headerBytes.size <= MAX_HEADER)
+        require(ivBytes.size == IV_SIZE)
+        require(cipherBytes.size <= MAX_CIPHERTEXT)
+
         val buffer = ByteBuffer.allocate(
-            4 + headerBytes.size +
-                    4 +
-                    4 +
+            1 +
+                    4 + headerBytes.size +
+                    4 + 4 +
                     4 + ivBytes.size +
                     4 + cipherBytes.size
         )
+
+        buffer.put(VERSION)
 
         buffer.putInt(headerBytes.size)
         buffer.put(headerBytes)
@@ -80,12 +73,16 @@ class MessageEncryptor(
         return buffer.array()
     }
 
-
     fun deserialize(data: ByteArray): NetworkMessage {
 
         val buffer = ByteBuffer.wrap(data)
 
+        val version = buffer.get()
+        require(version == VERSION) { "Unsupported protocol version" }
+
         val headerLen = buffer.int
+        require(headerLen in 1..MAX_HEADER)
+
         val headerBytes = ByteArray(headerLen)
         buffer.get(headerBytes)
 
@@ -93,10 +90,14 @@ class MessageEncryptor(
         val previousChainLength = buffer.int
 
         val ivLen = buffer.int
+        require(ivLen == IV_SIZE)
+
         val ivBytes = ByteArray(ivLen)
         buffer.get(ivBytes)
 
         val cipherLen = buffer.int
+        require(cipherLen in 1..MAX_CIPHERTEXT)
+
         val cipherBytes = ByteArray(cipherLen)
         buffer.get(cipherBytes)
 

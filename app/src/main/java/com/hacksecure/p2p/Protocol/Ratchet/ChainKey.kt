@@ -1,6 +1,7 @@
-package com.sentinel.chat.crypto.ratchet
+package com.sentinel.chat.Protocol.Ratchet
 
 import com.sentinel.chat.crypto.kdf.HKDF
+import java.util.Arrays
 
 class ChainKey(private val key: ByteArray) {
 
@@ -17,18 +18,22 @@ class ChainKey(private val key: ByteArray) {
         val messageKey: ByteArray
     )
 
-
     fun deriveMessageKey(): ChainKeyStep {
 
+        val currentKey = key.copyOf()
+
         val derived = HKDF.deriveKey(
-            salt = key,
-            ikm = byteArrayOf(0x01),
+            salt = null,
+            ikm = currentKey,
             info = INFO,
             length = DERIVED_SIZE
         )
 
         val nextChainKeyBytes = derived.copyOfRange(0, CHAIN_KEY_SIZE)
         val messageKeyBytes = derived.copyOfRange(CHAIN_KEY_SIZE, DERIVED_SIZE)
+
+        // destroy previous chain key
+        Arrays.fill(currentKey, 0)
 
         return ChainKeyStep(
             ChainKey(nextChainKeyBytes),

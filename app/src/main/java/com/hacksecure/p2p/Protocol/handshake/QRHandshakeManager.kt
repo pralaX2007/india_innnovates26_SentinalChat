@@ -1,10 +1,10 @@
-package com.sentinel.chat.network.qr
+package com.sentinel.chat.protocol.handshake
 
 import com.sentinel.chat.crypto.dh.DiffieHellmanHandshake
-import com.sentinel.chat.crypto.identity.IdentityKeyManager
+import com.sentinel.chat.identity.IdentityKeyManager
 import com.sentinel.chat.crypto.kdf.HKDF
-import com.sentinel.chat.crypto.ratchet.RootKey
-import com.sentinel.chat.crypto.ratchet.DoubleRatchet
+import com.sentinel.chat.protocol.Ratchet.RootKey
+import com.sentinel.chat.protocol.Ratchet.DoubleRatchet
 import java.security.KeyPair
 import java.security.PublicKey
 
@@ -15,9 +15,7 @@ object QRHandshake {
         val remoteUserId: String
     )
 
-    /**
-     * Perform QR-based handshake and initialize Double Ratchet
-     */
+
     fun performHandshake(
         scannedPayload: String
     ): HandshakeResult {
@@ -25,30 +23,42 @@ object QRHandshake {
         val parsed = QRCodeParser.parse(scannedPayload)
 
         val remoteUserId = parsed.userId
-        val remoteIdentityKeyBytes = parsed.publicKey
 
         val remoteIdentityKey: PublicKey =
-            DiffieHellmanHandshake.decodePublicKey(remoteIdentityKeyBytes)
+            DiffieHellmanHandshake.decodePublicKey(parsed.identityPublicKey)
+
+        val remoteEphemeralKey: PublicKey =
+            DiffieHellmanHandshake.decodePublicKey(parsed.ephemeralPublicKey)
 
         val localIdentityKeyPair = IdentityKeyManager.getIdentityKeyPair()
 
-        val ephemeralKeyPair: KeyPair =
+        val localEphemeralKeyPair: KeyPair =
             DiffieHellmanHandshake.generateEphemeralKeyPair()
 
-        val dh1 = DiffieHellmanHandshake.computeSharedSecret(
+        // DH1 = IK_A × IK_B
+        val dh1 = DiffieHellmanHandshake.computeSharedSecretRaw(
             localIdentityKeyPair.private,
             remoteIdentityKey
         )
 
-        val dh2 = DiffieHellmanHandshake.computeSharedSecret(
-            ephemeralKeyPair.private,
+        // DH2 = EK_A × EK_B
+        val dh2 = DiffieHellmanHandshake.computeSharedSecretRaw(
+            localEphemeralKeyPair.private,
+            remoteEphemeralKey
+        )
+
+        // DH3 = EK_A × IK_B
+        val dh3 = DiffieHellmanHandshake.computeSharedSecretRaw(
+            localEphemeralKeyPair.private,
             remoteIdentityKey
         )
 
+        val combinedSecret = concat(dh1, dh2, dh3)
+
         val masterSecret = HKDF.deriveKey(
             salt = null,
-            ikm = dh1 + dh2,
-            info = "QRHandshakeMasterSecret".toByteArray(),
+            ikm = combinedSecret,
+            info = "SentinelMessenger_QRHandshake_v1".toByteArray(),
             length = 32
         )
 
@@ -58,8 +68,8 @@ object QRHandshake {
             rootKey = rootKey,
             sendingChainKey = null,
             receivingChainKey = null,
-            dhKeyPair = ephemeralKeyPair,
-            remoteDhPublicKey = remoteIdentityKey
+            dhKeyPair = localEphemeralKeyPair,
+            remoteDhPublicKey = remoteEphemeralKey
         )
 
         return HandshakeResult(
@@ -68,13 +78,22 @@ object QRHandshake {
         )
     }
 
-    /**
-     * Utility operator for concatenating byte arrays
-     */
-    private operator fun ByteArray.plus(other: ByteArray): ByteArray {
-        val result = ByteArray(this.size + other.size)
-        System.arraycopy(this, 0, result, 0, this.size)
-        System.arraycopy(other, 0, result, this.size, other.size)
+   
+    private fun concat(vararg arrays: ByteArray): ByteArray {
+
+        var totalLength = 0
+        for (array in arrays) {
+            totalLength += array.size
+        }
+
+        val result = ByteArray(totalLength)
+
+        var position = 0
+        for (array in arrays) {
+            System.arraycopy(array, 0, result, position, array.size)
+            position += array.size
+        }
+
         return result
     }
 }

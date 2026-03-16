@@ -2,6 +2,7 @@ package com.sentinel.chat.crypto.ratchet
 
 import com.sentinel.chat.crypto.aead.AESGCMCipher
 import com.sentinel.chat.crypto.dh.DiffieHellmanHandshake
+import java.nio.ByteBuffer
 import java.security.KeyPair
 import java.security.PublicKey
 
@@ -20,6 +21,11 @@ class DoubleRatchet(
     private var receiveMessageNumber = 0
     private var previousChainLength = 0
 
+    private val skippedMessageKeys =
+        mutableMapOf<Pair<String, Int>, ByteArray>()
+
+    private val MAX_SKIP = 2000
+
     data class Header(
         val dhPublicKey: ByteArray,
         val messageNumber: Int,
@@ -31,21 +37,6 @@ class DoubleRatchet(
         val iv: ByteArray,
         val ciphertext: ByteArray
     )
-    fun getRootKey(): RootKey = rootKey
-
-    fun getSendingChainKey(): ChainKey? = sendingChainKey
-
-    fun getReceivingChainKey(): ChainKey? = receivingChainKey
-
-    fun getDhKeyPair(): KeyPair = dhKeyPair
-
-    fun getRemoteDhPublicKey(): PublicKey = remoteDhPublicKey
-
-    fun getSendMessageNumber(): Int = sendMessageNumber
-
-    fun getReceiveMessageNumber(): Int = receiveMessageNumber
-
-    fun getPreviousChainLength(): Int = previousChainLength
 
     fun encrypt(plaintext: ByteArray): EncryptedMessage {
 
@@ -77,10 +68,9 @@ class DoubleRatchet(
         return EncryptedMessage(
             header,
             encrypted.iv,
-            encrypted.ciphertext
+            encrypted.ciphertextWithTag
         )
     }
-
 
     fun decrypt(message: EncryptedMessage): ByteArray {
 
@@ -88,10 +78,28 @@ class DoubleRatchet(
 
         val remoteKey = DiffieHellmanHandshake.decodePublicKey(header.dhPublicKey)
 
-        if (!remoteKey.equals(remoteDhPublicKey)) {
+        val ratchetId = remoteKey.encoded.joinToString()
+
+        val skippedKey = skippedMessageKeys.remove(Pair(ratchetId, header.messageNumber))
+
+        if (skippedKey != null) {
+
+            val aad = serializeHeader(header)
+
+            return AESGCMCipher.decrypt(
+                key = skippedKey,
+                iv = message.iv,
+                ciphertextWithTag = message.ciphertext,
+                associatedData = aad
+            )
+        }
+
+        if (!remoteKey.encoded.contentEquals(remoteDhPublicKey.encoded)) {
 
             performDhRatchet(remoteKey)
         }
+
+        skipMessageKeys(header.messageNumber)
 
         val chainKey = receivingChainKey
             ?: throw IllegalStateException("Receiving chain not initialized")
@@ -102,20 +110,41 @@ class DoubleRatchet(
 
         val messageKey = step.messageKey
 
-        val aad = serializeHeader(header)
-
-        val plaintext = AESGCMCipher.decrypt(
-            key = messageKey,
-            iv = message.iv,
-            ciphertext = message.ciphertext,
-            associatedData = aad
-        )
-
         receiveMessageNumber++
 
-        return plaintext
+        val aad = serializeHeader(header)
+
+        return AESGCMCipher.decrypt(
+            key = messageKey,
+            iv = message.iv,
+            ciphertextWithTag = message.ciphertext,
+            associatedData = aad
+        )
     }
 
+    private fun skipMessageKeys(until: Int) {
+
+        if (receiveMessageNumber + MAX_SKIP < until) {
+            throw IllegalStateException("Too many skipped messages")
+        }
+
+        while (receiveMessageNumber < until) {
+
+            val chainKey = receivingChainKey
+                ?: throw IllegalStateException("Receiving chain not initialized")
+
+            val step = chainKey.deriveMessageKey()
+
+            receivingChainKey = step.nextChainKey
+
+            val ratchetId = remoteDhPublicKey.encoded.joinToString()
+
+            skippedMessageKeys[Pair(ratchetId, receiveMessageNumber)] =
+                step.messageKey
+
+            receiveMessageNumber++
+        }
+    }
 
     private fun performDhRatchet(newRemoteKey: PublicKey) {
 
@@ -123,7 +152,7 @@ class DoubleRatchet(
         sendMessageNumber = 0
         receiveMessageNumber = 0
 
-        val dh1 = DiffieHellmanHandshake.computeSharedSecret(
+        val dh1 = DiffieHellmanHandshake.computeSharedSecretRaw(
             dhKeyPair.private,
             newRemoteKey
         )
@@ -135,7 +164,7 @@ class DoubleRatchet(
 
         dhKeyPair = DiffieHellmanHandshake.generateEphemeralKeyPair()
 
-        val dh2 = DiffieHellmanHandshake.computeSharedSecret(
+        val dh2 = DiffieHellmanHandshake.computeSharedSecretRaw(
             dhKeyPair.private,
             newRemoteKey
         )
@@ -148,27 +177,16 @@ class DoubleRatchet(
         remoteDhPublicKey = newRemoteKey
     }
 
-
     private fun serializeHeader(header: Header): ByteArray {
 
-        val buffer = mutableListOf<Byte>()
+        val key = header.dhPublicKey
 
-        buffer.addAll(header.dhPublicKey.toList())
+        val buffer = ByteBuffer.allocate(key.size + 8)
 
-        buffer.addAll(intToBytes(header.messageNumber).toList())
+        buffer.put(key)
+        buffer.putInt(header.messageNumber)
+        buffer.putInt(header.previousChainLength)
 
-        buffer.addAll(intToBytes(header.previousChainLength).toList())
-
-        return buffer.toByteArray()
-    }
-
-    private fun intToBytes(value: Int): ByteArray {
-
-        return byteArrayOf(
-            (value shr 24).toByte(),
-            (value shr 16).toByte(),
-            (value shr 8).toByte(),
-            value.toByte()
-        )
+        return buffer.array()
     }
 }

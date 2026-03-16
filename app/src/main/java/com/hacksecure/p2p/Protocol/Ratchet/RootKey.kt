@@ -1,4 +1,4 @@
-package com.sentinel.chat.crypto.ratchet
+package com.sentinel.chat.Protocol.Ratchet
 
 import com.sentinel.chat.crypto.kdf.HKDF
 
@@ -17,8 +17,12 @@ class RootKey(private val key: ByteArray) {
         val chainKey: ChainKey
     )
 
-
     fun derive(dhOutput: ByteArray): RootKeyStep {
+
+        // Safety check for invalid DH result
+        require(dhOutput.isNotEmpty()) {
+            "DH output cannot be empty"
+        }
 
         val derived = HKDF.deriveKey(
             salt = key,
@@ -35,7 +39,6 @@ class RootKey(private val key: ByteArray) {
 
         return RootKeyStep(newRootKey, chainKey)
     }
-
 
     fun getKeyBytes(): ByteArray {
         return key.copyOf()
