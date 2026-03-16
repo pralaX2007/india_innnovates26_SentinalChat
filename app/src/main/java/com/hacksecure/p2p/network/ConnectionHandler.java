@@ -19,10 +19,6 @@ public class ConnectionHandler {
     private final ExecutorService executor = Executors.newCachedThreadPool();
     private MessageReceiveListener listener;
 
-    public void setListener(MessageReceiveListener listener) {
-        this.listener = listener;
-    }
-
     public interface MessageReceiveListener {
         void onConnected();
         void onMessageReceived(byte[] rawData);

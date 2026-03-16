@@ -8,9 +8,9 @@ import android.content.IntentFilter;
 import android.net.NetworkInfo;
 import android.net.wifi.p2p.WifiP2pConfig;
 import android.net.wifi.p2p.WifiP2pDevice;
-import android.net.wifi.p2p.WifiP2pDeviceList;
 import android.net.wifi.p2p.WifiP2pInfo;
 import android.net.wifi.p2p.WifiP2pManager;
+import android.os.Build;
 import android.os.Looper;
 
 import com.hacksecure.p2p.utils.Logger;
@@ -64,7 +64,13 @@ public class WifiDirectManager {
                         if (listener != null) listener.onPeersAvailable(new ArrayList<>(peers.getDeviceList()));
                     });
                 } else if (WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION.equals(action)) {
-                    NetworkInfo networkInfo = intent.getParcelableExtra(WifiP2pManager.EXTRA_NETWORK_INFO);
+                    NetworkInfo networkInfo;
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        networkInfo = intent.getParcelableExtra(WifiP2pManager.EXTRA_NETWORK_INFO, NetworkInfo.class);
+                    } else {
+                        networkInfo = intent.getParcelableExtra(WifiP2pManager.EXTRA_NETWORK_INFO);
+                    }
+
                     if (networkInfo != null && networkInfo.isConnected()) {
                         manager.requestConnectionInfo(channel, info -> {
                             if (listener != null) listener.onConnected(info);
@@ -75,7 +81,12 @@ public class WifiDirectManager {
                 }
             }
         };
-        context.registerReceiver(receiver, intentFilter);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.registerReceiver(receiver, intentFilter, Context.RECEIVER_EXPORTED);
+        } else {
+            context.registerReceiver(receiver, intentFilter);
+        }
     }
 
     @SuppressLint("MissingPermission")
