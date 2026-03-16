@@ -4,7 +4,7 @@
             "outputFile": "com.hacksecure.p2p.app-mergeDebugResources-30:/values-hdpi-v4/values-hdpi-v4.xml",
             "map": [
                 {
-                    "source": "/Users/naitikkanha/.gradle/caches/9.0.0/transforms/7990f5769f143a813b4d64bc63c5e16a/transformed/appcompat-1.6.1/res/values-hdpi-v4/values-hdpi-v4.xml",
+                    "source": "C:\\Users\\lenovo\\.gradle\\caches\\9.0.0\\transforms\\7990f5769f143a813b4d64bc63c5e16a\\transformed\\appcompat-1.6.1\\res\\values-hdpi-v4\\values-hdpi-v4.xml",
                     "from": {
                         "startLines": "2",
                         "startColumns": "4",
