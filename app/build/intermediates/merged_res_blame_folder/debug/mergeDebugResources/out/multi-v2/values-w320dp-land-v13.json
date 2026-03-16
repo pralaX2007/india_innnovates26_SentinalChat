@@ -1,10 +1,10 @@
 {
     "logs": [
         {
-            "outputFile": "com.hacksecure.p2p.app-mergeDebugResources-30:/values-w320dp-land-v13/values-w320dp-land-v13.xml",
+            "outputFile": "com.hacksecure.p2p.app-mergeDebugResources-35:/values-w320dp-land-v13/values-w320dp-land-v13.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\lenovo\\.gradle\\caches\\9.0.0\\transforms\\6e5921e033dfa5f072757b3f77d5df81\\transformed\\material-1.11.0\\res\\values-w320dp-land-v13\\values-w320dp-land-v13.xml",
+                    "source": "/Users/naitikkanha/.gradle/caches/9.0.0/transforms/6e5921e033dfa5f072757b3f77d5df81/transformed/material-1.11.0/res/values-w320dp-land-v13/values-w320dp-land-v13.xml",
                     "from": {
                         "startLines": "2,3",
                         "startColumns": "4,4",

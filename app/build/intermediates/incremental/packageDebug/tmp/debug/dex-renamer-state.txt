@@ -1,25 +1,19 @@
-<<<<<<< HEAD
-#Fri Mar 13 13:18:12 IST 2026
-base.0=C\:\\Users\\lenovo\\StudioProjects\\india_innnovates26_SentinalChat\\app\\build\\intermediates\\dex\\debug\\mergeExtDexDebug\\classes.dex
-base.1=C\:\\Users\\lenovo\\StudioProjects\\india_innnovates26_SentinalChat\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\0\\classes.dex
-base.2=C\:\\Users\\lenovo\\StudioProjects\\india_innnovates26_SentinalChat\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\12\\classes.dex
-base.3=C\:\\Users\\lenovo\\StudioProjects\\india_innnovates26_SentinalChat\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\13\\classes.dex
-base.4=C\:\\Users\\lenovo\\StudioProjects\\india_innnovates26_SentinalChat\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\7\\classes.dex
-=======
-#Thu Mar 12 00:23:35 IST 2026
+#Mon Mar 16 15:28:38 IST 2026
 base.0=/Users/naitikkanha/AndroidStudioProjects/india_innnovates26_SentinalChat/app/build/intermediates/dex/debug/mergeExtDexDebug/classes.dex
 base.1=/Users/naitikkanha/AndroidStudioProjects/india_innnovates26_SentinalChat/app/build/intermediates/dex/debug/mergeProjectDexDebug/0/classes.dex
 base.2=/Users/naitikkanha/AndroidStudioProjects/india_innnovates26_SentinalChat/app/build/intermediates/dex/debug/mergeProjectDexDebug/12/classes.dex
 base.3=/Users/naitikkanha/AndroidStudioProjects/india_innnovates26_SentinalChat/app/build/intermediates/dex/debug/mergeProjectDexDebug/13/classes.dex
 base.4=/Users/naitikkanha/AndroidStudioProjects/india_innnovates26_SentinalChat/app/build/intermediates/dex/debug/mergeProjectDexDebug/7/classes.dex
->>>>>>> 17649dc1b5135dff31b5f2d997b3942a97d16ff2
+base.5=/Users/naitikkanha/AndroidStudioProjects/india_innnovates26_SentinalChat/app/build/intermediates/dex/debug/mergeExtDexDebug/classes2.dex
 path.0=classes.dex
 path.1=0/classes.dex
 path.2=12/classes.dex
 path.3=13/classes.dex
 path.4=7/classes.dex
+path.5=classes2.dex
 renamed.0=classes.dex
 renamed.1=classes2.dex
 renamed.2=classes3.dex
 renamed.3=classes4.dex
 renamed.4=classes5.dex
+renamed.5=classes6.dex
