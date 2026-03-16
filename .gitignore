@@ -1,1 +1,54 @@
+# Gradle
+.gradle/
+/build/
+**/build/
+
+# Local configuration file (sdk path, etc)
 local.properties
+
+# Log files
+*.log
+
+# Android Studio
+/.idea/
+*.iml
+*.iws
+
+# Android specific
+*.apk
+*.ap_ 
+*.aab
+*.dex
+*.class
+*.jar
+*.keystore
+*.keystore.properties
+
+# Generated files
+app/src/main/gen/
+
+# Gradle Wrapper
+gradle-wrapper.properties
+
+# Kotlin/Java
+*.class
+*.jar
+*.war
+*.ear
+
+# IntelliJ
+out/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Crashlytics
+crashlytics.properties
+
+# Misc
+*.orig
+
+# Keep this file in repo
+!/.gitignore
