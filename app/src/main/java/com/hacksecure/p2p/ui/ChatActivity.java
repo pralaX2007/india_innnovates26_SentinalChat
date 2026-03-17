@@ -17,12 +17,13 @@ import com.hacksecure.p2p.R;
 import com.sentinel.chat.Protocol.Ratchet.DoubleRatchet;
 import com.sentinel.chat.messaging.model.MessageMetadata;
 import com.sentinel.chat.messaging.model.MessagePacket;
+import com.sentinel.chat.messaging.service.MessageDecryptor;
 import com.sentinel.chat.messaging.transport.MessageReceiver;
 import com.sentinel.chat.messaging.transport.MessageSender;
 import com.sentinel.chat.network.ConnectionHandler;
 import com.sentinel.chat.session.SessionManager;
-import com.sentinel.chat.utils.SerializationUtils;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -63,11 +64,14 @@ public class ChatActivity extends AppCompatActivity {
 
         sessionManager = new SessionManager();
 
-        // DoubleRatchet must already be created via QRHandshake
+        // Must already exist from QR handshake
         ratchet = sessionManager.getSession(peerId).getRatchet();
 
+        // ✅ FIX 1: correct constructor usage
+        MessageDecryptor decryptor = new MessageDecryptor(ratchet);
+
         messageSender = new MessageSender(connectionHandler);
-        messageReceiver = new MessageReceiver(connectionHandler, ratchet);
+        messageReceiver = new MessageReceiver(connectionHandler, decryptor);
 
         btnSend.setOnClickListener(v -> sendMessage());
 
@@ -80,7 +84,7 @@ public class ChatActivity extends AppCompatActivity {
 
         if (text.isEmpty()) return;
 
-        byte[] plaintext = text.getBytes();
+        byte[] plaintext = text.getBytes(StandardCharsets.UTF_8);
 
         DoubleRatchet.EncryptedMessage encrypted = ratchet.encrypt(plaintext);
 
@@ -107,28 +111,18 @@ public class ChatActivity extends AppCompatActivity {
 
         new Thread(() -> {
 
-            while (true) {
+            while (!Thread.currentThread().isInterrupted()) {
 
                 try {
 
-                    byte[] raw = connectionHandler.receiveRawBytes();
+                    // ✅ FIX 2: use MessageReceiver abstraction
+                    String message = messageReceiver.receive();
 
-                    if (raw == null) continue;
+                    if (message == null) continue;
 
-                    MessagePacket packet = SerializationUtils.deserialize(raw);
-
-                    DoubleRatchet.EncryptedMessage encrypted =
-                            new DoubleRatchet.EncryptedMessage(
-                                    packet.getHeader(),
-                                    packet.getIv(),
-                                    packet.getCiphertext()
-                            );
-
-                    byte[] plaintext = ratchet.decrypt(encrypted);
-
-                    String message = new String(plaintext);
-
-                    runOnUiThread(() -> adapter.addMessage(message, false));
+                    runOnUiThread(() ->
+                            adapter.addMessage(message, false)
+                    );
 
                 } catch (Exception e) {
 
