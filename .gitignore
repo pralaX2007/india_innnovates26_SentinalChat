@@ -16,7 +16,7 @@ local.properties
 
 # Android specific
 *.apk
-*.ap_ 
+*.ap_
 *.aab
 *.dex
 *.class
@@ -26,9 +26,6 @@ local.properties
 
 # Generated files
 app/src/main/gen/
-
-# Gradle Wrapper
-gradle-wrapper.properties
 
 # Kotlin/Java
 *.class
@@ -49,6 +46,3 @@ crashlytics.properties
 
 # Misc
 *.orig
-
-# Keep this file in repo
-!/.gitignore
