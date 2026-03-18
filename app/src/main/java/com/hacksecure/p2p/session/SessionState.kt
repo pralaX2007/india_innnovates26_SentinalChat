@@ -1,6 +1,6 @@
-package com.sentinel.chat.session
+package com.hacksecure.p2p.session
 
-import com.sentinel.chat.Protocol.Ratchet.DoubleRatchet
+import com.hacksecure.p2p.Protocol.Ratchet.DoubleRatchet
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 

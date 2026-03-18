@@ -1,7 +1,7 @@
-package com.sentinel.chat.crypto.ratchet
+package com.hacksecure.p2p.Protocol.Ratchet
 
-import com.sentinel.chat.crypto.aead.AESGCMCipher
-import com.sentinel.chat.crypto.dh.DiffieHellmanHandshake
+import com.hacksecure.p2p.crypto.aes.AESGCMCipher
+import com.hacksecure.p2p.crypto.dh.DiffieHellmanHandshake
 import java.nio.ByteBuffer
 import java.security.KeyPair
 import java.security.PublicKey
@@ -37,6 +37,15 @@ class DoubleRatchet(
         val iv: ByteArray,
         val ciphertext: ByteArray
     )
+
+    fun getRootKey(): RootKey = rootKey
+    fun getSendingChainKey(): ChainKey? = sendingChainKey
+    fun getReceivingChainKey(): ChainKey? = receivingChainKey
+    fun getDhKeyPair(): KeyPair = dhKeyPair
+    fun getRemoteDhPublicKey(): PublicKey = remoteDhPublicKey
+    fun getSendMessageNumber(): Int = sendMessageNumber
+    fun getReceiveMessageNumber(): Int = receiveMessageNumber
+    fun getPreviousChainLength(): Int = previousChainLength
 
     fun encrypt(plaintext: ByteArray): EncryptedMessage {
 

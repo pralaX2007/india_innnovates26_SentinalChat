@@ -1,4 +1,4 @@
-package com.sentinel.chat.network.qr
+package com.hacksecure.p2p.ui.connection
 
 import android.graphics.Bitmap
 import com.google.zxing.BarcodeFormat

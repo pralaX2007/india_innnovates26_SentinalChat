@@ -1,4 +1,4 @@
-package com.hacksecure.p2p.models;
+package com.hacksecure.p2p.messaging.models;
 
 import java.util.ArrayList;
 import java.util.List;

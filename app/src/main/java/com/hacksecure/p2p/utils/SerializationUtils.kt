@@ -1,8 +1,8 @@
-package com.sentinel.chat.utils
+package com.hacksecure.p2p.utils
 
-import com.sentinel.chat.messaging.model.MessageMetadata
-import com.sentinel.chat.messaging.model.MessagePacket
-import com.sentinel.chat.messaging.model.RatchetHeader
+import com.hacksecure.p2p.messaging.models.MessageMetadata
+import com.hacksecure.p2p.messaging.models.MessagePacket
+import com.hacksecure.p2p.messaging.models.RatchetHeader
 import java.nio.ByteBuffer
 
 object SerializationUtils {

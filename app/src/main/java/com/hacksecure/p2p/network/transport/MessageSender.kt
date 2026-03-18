@@ -1,8 +1,8 @@
-package com.sentinel.chat.messaging.transport
+package com.hacksecure.p2p.network.transport
 
-import com.sentinel.chat.messaging.model.MessagePacket
-import com.sentinel.chat.utils.SerializationUtils
-import com.sentinel.chat.network.ConnectionHandler
+import com.hacksecure.p2p.messaging.models.MessagePacket
+import com.hacksecure.p2p.utils.SerializationUtils
+import com.hacksecure.p2p.network.wifidirect.ConnectionHandler
 
 class MessageSender(
     private val connectionHandler: ConnectionHandler

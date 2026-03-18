@@ -1,4 +1,4 @@
-package com.sentinel.chat.crypto.identity
+package com.hacksecure.p2p.identity
 
 import android.content.Context
 import android.security.keystore.KeyGenParameterSpec

@@ -1,4 +1,4 @@
-package com.sentinel.chat.network.qr
+package com.hacksecure.p2p.ui.connection
 
 import android.annotation.SuppressLint
 import android.content.Context

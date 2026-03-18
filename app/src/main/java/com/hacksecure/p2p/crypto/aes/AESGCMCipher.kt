@@ -1,6 +1,6 @@
-package com.sentinel.chat.crypto.aes
+package com.hacksecure.p2p.crypto.aes
 
-import com.sentinel.chat.crypto.utils.SecureRandomProvider
+import com.hacksecure.p2p.security.SecureRandomProvider
 import java.util.Arrays
 import javax.crypto.Cipher
 import javax.crypto.spec.GCMParameterSpec
@@ -26,8 +26,7 @@ object AESGCMCipher {
 
         require(key.size == 32) { "AES-256 requires a 32 byte key" }
 
-        val iv = ByteArray(IV_LENGTH)
-        SecureRandomProvider.nextBytes(iv)
+        val iv = SecureRandomProvider.nextBytes(IV_LENGTH)
 
         val cipher = Cipher.getInstance(AES_MODE)
 

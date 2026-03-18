@@ -1,4 +1,4 @@
-package com.sentinel.chat.database
+package com.hacksecure.p2p.storage
 
 import java.util.concurrent.ConcurrentHashMap
 
@@ -12,7 +12,9 @@ class MessageDatabase {
 
         val ciphertext: ByteArray,
 
-        val timestamp: Long
+        val timestamp: Long,
+
+        val ttlSeconds: Long = 3600
     )
 
     private val messageStore = ConcurrentHashMap<String, StoredMessage>()
@@ -22,14 +24,16 @@ class MessageDatabase {
         messageId: String,
         peerId: String,
         ciphertext: ByteArray,
-        timestamp: Long
+        timestamp: Long,
+        ttlSeconds: Long = 3600
     ) {
 
         val message = StoredMessage(
             messageId = messageId,
             peerId = peerId,
             ciphertext = ciphertext,
-            timestamp = timestamp
+            timestamp = timestamp,
+            ttlSeconds = ttlSeconds
         )
 
         messageStore[messageId] = message
@@ -47,6 +51,12 @@ class MessageDatabase {
         return messageStore.values
             .filter { it.peerId == peerId }
             .sortedBy { it.timestamp }
+    }
+
+
+    fun getAllMessages(): List<StoredMessage> {
+
+        return messageStore.values.toList()
     }
 
 

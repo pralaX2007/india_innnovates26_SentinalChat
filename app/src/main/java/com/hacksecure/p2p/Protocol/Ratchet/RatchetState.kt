@@ -1,4 +1,4 @@
-package com.sentinel.chat.crypto.ratchet
+package com.hacksecure.p2p.Protocol.Ratchet
 
 import java.security.KeyFactory
 import java.security.KeyPair
@@ -87,10 +87,7 @@ data class RatchetState(
                 sendingChainKey = sendingChainKey,
                 receivingChainKey = receivingChainKey,
                 dhKeyPair = keyPair,
-                remoteDhPublicKey = remotePublicKey,
-                sendMessageNumber = state.sendMessageNumber,
-                receiveMessageNumber = state.receiveMessageNumber,
-                previousChainLength = state.previousChainLength
+                remoteDhPublicKey = remotePublicKey
             )
         }
     }

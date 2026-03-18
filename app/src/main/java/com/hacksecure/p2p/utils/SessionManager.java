@@ -2,7 +2,7 @@ package com.hacksecure.p2p.utils;
 
 import com.hacksecure.p2p.crypto.EncryptionManager;
 import com.hacksecure.p2p.crypto.KeyManager;
-import com.hacksecure.p2p.models.Session;
+import com.hacksecure.p2p.messaging.models.Session;
 import java.util.UUID;
 
 public class SessionManager {

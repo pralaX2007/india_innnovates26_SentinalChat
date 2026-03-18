@@ -1,4 +1,4 @@
-package com.hacksecure.p2p.models;
+package com.hacksecure.p2p.messaging.models;
 
 public class Message {
     private String senderId;

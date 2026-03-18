@@ -1,4 +1,4 @@
-package com.sentinel.chat.crypto.dh
+package com.hacksecure.p2p.crypto.dh
 
 import java.security.KeyFactory
 import java.security.KeyPair

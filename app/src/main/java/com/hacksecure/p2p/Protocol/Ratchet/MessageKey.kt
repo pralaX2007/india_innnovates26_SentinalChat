@@ -1,4 +1,4 @@
-package com.sentinel.chat.crypto.ratchet
+package com.hacksecure.p2p.Protocol.Ratchet
 
 import java.nio.ByteBuffer
 import java.security.SecureRandom

@@ -20,7 +20,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.hacksecure.p2p.R;
-import com.hacksecure.p2p.network.WifiDirectManager;
+import com.hacksecure.p2p.network.wifidirect.WifiDirectManager;
 import com.hacksecure.p2p.utils.Logger;
 
 import java.util.ArrayList;

@@ -1,4 +1,4 @@
-package com.sentinel.chat.messaging.models
+package com.hacksecure.p2p.messaging.models
 
 import java.util.Base64
 

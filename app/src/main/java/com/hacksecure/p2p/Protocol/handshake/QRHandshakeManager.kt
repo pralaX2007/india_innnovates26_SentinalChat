@@ -1,10 +1,11 @@
-package com.sentinel.chat.protocol.handshake
+package com.hacksecure.p2p.Protocol.handshake
 
-import com.sentinel.chat.crypto.dh.DiffieHellmanHandshake
-import com.sentinel.chat.identity.IdentityKeyManager
-import com.sentinel.chat.crypto.kdf.HKDF
-import com.sentinel.chat.protocol.Ratchet.RootKey
-import com.sentinel.chat.protocol.Ratchet.DoubleRatchet
+import com.hacksecure.p2p.crypto.dh.DiffieHellmanHandshake
+import com.hacksecure.p2p.identity.IdentityKeyManager
+import com.hacksecure.p2p.crypto.kdf.HKDF
+import com.hacksecure.p2p.Protocol.Ratchet.RootKey
+import com.hacksecure.p2p.Protocol.Ratchet.DoubleRatchet
+import com.hacksecure.p2p.network.qr.QRCodeParser
 import java.security.KeyPair
 import java.security.PublicKey
 
@@ -25,10 +26,10 @@ object QRHandshake {
         val remoteUserId = parsed.userId
 
         val remoteIdentityKey: PublicKey =
-            DiffieHellmanHandshake.decodePublicKey(parsed.identityPublicKey)
+            DiffieHellmanHandshake.decodePublicKey(parsed.publicKey)
 
         val remoteEphemeralKey: PublicKey =
-            DiffieHellmanHandshake.decodePublicKey(parsed.ephemeralPublicKey)
+            DiffieHellmanHandshake.decodePublicKey(parsed.publicKey)
 
         val localIdentityKeyPair = IdentityKeyManager.getIdentityKeyPair()
 

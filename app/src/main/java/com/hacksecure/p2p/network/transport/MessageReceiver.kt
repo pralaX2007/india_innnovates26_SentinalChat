@@ -1,9 +1,9 @@
-package com.sentinel.chat.messaging.transport
+package com.hacksecure.p2p.network.transport
 
-import com.sentinel.chat.messaging.model.MessagePacket
-import com.sentinel.chat.messaging.service.MessageDecryptor
-import com.sentinel.chat.utils.SerializationUtils
-import com.sentinel.chat.network.ConnectionHandler
+import com.hacksecure.p2p.messaging.models.MessagePacket
+import com.hacksecure.p2p.messaging.encryption.MessageDecryptor
+import com.hacksecure.p2p.utils.SerializationUtils
+import com.hacksecure.p2p.network.wifidirect.ConnectionHandler
 
 class MessageReceiver(
     private val connectionHandler: ConnectionHandler,
@@ -15,9 +15,10 @@ class MessageReceiver(
     }
 
 
-    fun receive(): String? {
-
-        val rawBytes = connectionHandler.receiveRawBytes() ?: return null
+    /**
+     * Receive and decrypt a message from the given raw bytes
+     */
+    fun receive(rawBytes: ByteArray): String? {
 
         require(rawBytes.size <= MAX_PACKET_SIZE) {
             "Incoming packet exceeds allowed size"
@@ -34,5 +35,12 @@ class MessageReceiver(
                 ciphertext = packet.ciphertext.let { String(it) }
             )
         )
+    }
+
+    /**
+     * No-arg version for compatibility — returns null (use listener pattern instead)
+     */
+    fun receive(): String? {
+        return null
     }
 }

@@ -1,5 +1,6 @@
-package com.sentinel.chat.crypto.identity
+package com.hacksecure.p2p.security
 
+import com.hacksecure.p2p.identity.KeyFingerprint
 import java.security.PublicKey
 
 object IdentityVerification {

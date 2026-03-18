@@ -1,4 +1,4 @@
-package com.sentinel.chat.utils
+package com.hacksecure.p2p.utils
 
 import java.util.Base64
 

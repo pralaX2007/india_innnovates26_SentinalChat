@@ -1,4 +1,4 @@
-package com.sentinel.chat.crypto.security
+package com.hacksecure.p2p.security
 
 import java.util.concurrent.ConcurrentHashMap
 

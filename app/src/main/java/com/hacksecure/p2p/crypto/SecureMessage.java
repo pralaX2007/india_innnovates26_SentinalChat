@@ -1,7 +1,7 @@
 package com.hacksecure.p2p.crypto;
 
 import android.util.Base64;
-import com.hacksecure.p2p.models.Message;
+import com.hacksecure.p2p.messaging.models.Message;
 import com.hacksecure.p2p.utils.Logger;
 
 public class SecureMessage {

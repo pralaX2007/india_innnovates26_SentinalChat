@@ -1,4 +1,4 @@
-package com.hacksecure.p2p.network;
+package com.hacksecure.p2p.network.wifidirect;
 
 import android.net.wifi.p2p.WifiP2pDevice;
 import android.net.wifi.p2p.WifiP2pDeviceList;

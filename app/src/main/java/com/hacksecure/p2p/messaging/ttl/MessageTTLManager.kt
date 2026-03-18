@@ -1,7 +1,7 @@
-package com.sentinel.chat.messaging.ttl
+package com.hacksecure.p2p.messaging.ttl
 
-import com.sentinel.chat.database.MessageDatabase
-import com.sentinel.chat.database.SessionDatabase
+import com.hacksecure.p2p.storage.MessageDatabase
+import com.hacksecure.p2p.storage.SessionDatabase
 import java.time.Instant
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit

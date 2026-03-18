@@ -1,6 +1,4 @@
-package com.sentinel.chat.crypto.utils
-
-import com.sentinel.chat.crypto.random.SecureRandomProvider
+package com.hacksecure.p2p.security
 
 object NonceGenerator {
 
@@ -9,10 +7,7 @@ object NonceGenerator {
 
     fun generateGcmNonce(): ByteArray {
 
-        val nonce = ByteArray(GCM_NONCE_SIZE)
-        SecureRandomProvider.nextBytes(nonce)
-
-        return nonce
+        return SecureRandomProvider.nextBytes(GCM_NONCE_SIZE)
     }
 
 

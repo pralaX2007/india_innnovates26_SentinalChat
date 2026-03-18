@@ -1,4 +1,4 @@
-package com.sentinel.chat.messaging.model
+package com.hacksecure.p2p.messaging.models
 
 
 data class RatchetHeader(

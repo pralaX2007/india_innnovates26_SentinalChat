@@ -1,6 +1,6 @@
-package com.sentinel.chat.Protocol.Ratchet
+package com.hacksecure.p2p.Protocol.Ratchet
 
-import com.sentinel.chat.crypto.kdf.HKDF
+import com.hacksecure.p2p.crypto.kdf.HKDF
 
 class RootKey(private val key: ByteArray) {
 

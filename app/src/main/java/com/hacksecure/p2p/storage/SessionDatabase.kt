@@ -1,6 +1,5 @@
-package com.sentinel.chat.database
+package com.hacksecure.p2p.storage
 
-import com.sentinel.chat.session.SessionState
 import java.util.concurrent.ConcurrentHashMap
 
 class SessionDatabase {

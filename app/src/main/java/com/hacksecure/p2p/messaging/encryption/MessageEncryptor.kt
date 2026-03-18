@@ -1,6 +1,6 @@
-package com.sentinel.chat.messaging.encryption
+package com.hacksecure.p2p.messaging.encryption
 
-import com.sentinel.chat.Protocol.Ratchet.DoubleRatchet
+import com.hacksecure.p2p.Protocol.Ratchet.DoubleRatchet
 import java.nio.ByteBuffer
 import java.util.Base64
 

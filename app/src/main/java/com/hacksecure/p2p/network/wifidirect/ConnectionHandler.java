@@ -1,4 +1,4 @@
-package com.hacksecure.p2p.network;
+package com.hacksecure.p2p.network.wifidirect;
 
 import com.hacksecure.p2p.utils.Logger;
 

@@ -1,4 +1,4 @@
-package com.sentinel.chat.network.qr
+package com.hacksecure.p2p.network.qr
 
 import java.util.Base64
 

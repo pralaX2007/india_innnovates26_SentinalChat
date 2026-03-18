@@ -1,4 +1,4 @@
-package com.sentinel.chat.crypto.kdf
+package com.hacksecure.p2p.crypto.kdf
 
 import java.util.Arrays
 import javax.crypto.Mac

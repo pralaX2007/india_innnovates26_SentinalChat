@@ -1,4 +1,4 @@
-package com.sentinel.chat.crypto.utils
+package com.hacksecure.p2p.security
 
 import java.security.SecureRandom
 import java.util.concurrent.atomic.AtomicReference
@@ -37,6 +37,13 @@ object SecureRandomProvider {
         get().nextBytes(bytes)
 
         return bytes
+    }
+
+    /**
+     * Fill existing byte array with random bytes
+     */
+    fun nextBytes(bytes: ByteArray) {
+        get().nextBytes(bytes)
     }
 
     /**

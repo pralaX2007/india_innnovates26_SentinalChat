@@ -14,14 +14,15 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.hacksecure.p2p.R;
-import com.sentinel.chat.Protocol.Ratchet.DoubleRatchet;
-import com.sentinel.chat.messaging.model.MessageMetadata;
-import com.sentinel.chat.messaging.model.MessagePacket;
-import com.sentinel.chat.messaging.service.MessageDecryptor;
-import com.sentinel.chat.messaging.transport.MessageReceiver;
-import com.sentinel.chat.messaging.transport.MessageSender;
-import com.sentinel.chat.network.ConnectionHandler;
-import com.sentinel.chat.session.SessionManager;
+import com.hacksecure.p2p.Protocol.Ratchet.DoubleRatchet;
+import com.hacksecure.p2p.messaging.models.MessageMetadata;
+import com.hacksecure.p2p.messaging.models.MessagePacket;
+import com.hacksecure.p2p.messaging.models.RatchetHeader;
+import com.hacksecure.p2p.messaging.encryption.MessageDecryptor;
+import com.hacksecure.p2p.network.transport.MessageReceiver;
+import com.hacksecure.p2p.network.transport.MessageSender;
+import com.hacksecure.p2p.network.wifidirect.ConnectionHandler;
+import com.hacksecure.p2p.session.SessionManager;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -88,16 +89,24 @@ public class ChatActivity extends AppCompatActivity {
 
         DoubleRatchet.EncryptedMessage encrypted = ratchet.encrypt(plaintext);
 
+        RatchetHeader ratchetHeader = new RatchetHeader(
+                encrypted.getHeader().getDhPublicKey(),
+                encrypted.getHeader().getMessageNumber(),
+                encrypted.getHeader().getPreviousChainLength()
+        );
+
+        MessageMetadata metadata = new MessageMetadata(
+                selfId,
+                UUID.randomUUID().toString(),
+                System.currentTimeMillis(),
+                0
+        );
+
         MessagePacket packet = new MessagePacket(
-                encrypted.header,
-                encrypted.iv,
-                encrypted.ciphertext,
-                new MessageMetadata(
-                        selfId,
-                        UUID.randomUUID().toString(),
-                        System.currentTimeMillis(),
-                        0
-                )
+                ratchetHeader,
+                encrypted.getIv(),
+                encrypted.getCiphertext(),
+                metadata
         );
 
         messageSender.send(packet);

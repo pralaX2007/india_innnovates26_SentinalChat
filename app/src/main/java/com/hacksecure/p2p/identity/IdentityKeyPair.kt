@@ -1,4 +1,4 @@
-package com.sentinel.chat.identity
+package com.hacksecure.p2p.identity
 
 import java.security.PrivateKey
 import java.security.PublicKey

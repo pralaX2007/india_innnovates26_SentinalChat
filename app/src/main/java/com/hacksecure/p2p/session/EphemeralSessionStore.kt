@@ -1,4 +1,4 @@
-package com.sentinel.chat.session
+package com.hacksecure.p2p.session
 
 import java.util.concurrent.ConcurrentHashMap
 
