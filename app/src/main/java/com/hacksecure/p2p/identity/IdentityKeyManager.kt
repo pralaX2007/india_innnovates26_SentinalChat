@@ -1,82 +1,97 @@
 package com.hacksecure.p2p.identity
 
 import android.content.Context
-import android.security.keystore.KeyGenParameterSpec
-import android.security.keystore.KeyProperties
 import java.security.KeyPair
 import java.security.KeyPairGenerator
-import java.security.KeyStore
 import java.security.PublicKey
 import java.security.PrivateKey
+import java.security.KeyStore
+import java.security.spec.ECGenParameterSpec
 
 object IdentityKeyManager {
 
-    private const val KEYSTORE_PROVIDER = "AndroidKeyStore"
-    private const val IDENTITY_KEY_ALIAS = "SentinelChatIdentityKey"
+    private const val KEY_ALIAS = "P2P_IDENTITY_KEY"
+    private const val ANDROID_KEYSTORE = "AndroidKeyStore"
 
+    private lateinit var keyStore: KeyStore
 
+    /**
+     * MUST be called once at app start
+     */
     fun initialize(context: Context) {
-        val keyStore = KeyStore.getInstance(KEYSTORE_PROVIDER)
+
+        keyStore = KeyStore.getInstance(ANDROID_KEYSTORE)
         keyStore.load(null)
 
-        if (!keyStore.containsAlias(IDENTITY_KEY_ALIAS)) {
+        if (!keyStore.containsAlias(KEY_ALIAS)) {
             generateIdentityKey()
         }
     }
 
-
-    private fun generateIdentityKey(): KeyPair {
+    /**
+     * Generate long-term identity key
+     */
+    private fun generateIdentityKey() {
 
         val keyPairGenerator = KeyPairGenerator.getInstance(
-            KeyProperties.KEY_ALGORITHM_EC,
-            KEYSTORE_PROVIDER
+            "EC",
+            ANDROID_KEYSTORE
         )
 
-        val parameterSpec = KeyGenParameterSpec.Builder(
-            IDENTITY_KEY_ALIAS,
-            KeyProperties.PURPOSE_AGREE_KEY
+        val spec = android.security.keystore.KeyGenParameterSpec.Builder(
+            KEY_ALIAS,
+            android.security.keystore.KeyProperties.PURPOSE_AGREE_KEY
         )
-            .setAlgorithmParameterSpec(
-                java.security.spec.ECGenParameterSpec("secp256r1")
-            )
-            .setDigests(KeyProperties.DIGEST_SHA256)
+            .setAlgorithmParameterSpec(ECGenParameterSpec("secp256r1"))
+            .setDigests(android.security.keystore.KeyProperties.DIGEST_SHA256)
             .build()
 
-        keyPairGenerator.initialize(parameterSpec)
+        keyPairGenerator.initialize(spec)
 
-        return keyPairGenerator.generateKeyPair()
+        keyPairGenerator.generateKeyPair()
     }
 
+    /**
+     * Get identity key pair (wrapped)
+     */
+    fun getIdentityKeyPair(): IdentityKeyPair {
 
+        val privateKey = keyStore.getKey(KEY_ALIAS, null) as PrivateKey
+        val publicKey = keyStore.getCertificate(KEY_ALIAS).publicKey
+
+        return IdentityKeyPair(
+            publicKey = publicKey,
+            privateKey = privateKey
+        )
+    }
+
+    /**
+     * Get only public key (for QR / sharing)
+     */
     fun getPublicKey(): PublicKey {
-
-        val keyStore = KeyStore.getInstance(KEYSTORE_PROVIDER)
-        keyStore.load(null)
-
-        val cert = keyStore.getCertificate(IDENTITY_KEY_ALIAS)
-            ?: throw IllegalStateException("Identity key not initialized")
-
-        return cert.publicKey
+        return keyStore.getCertificate(KEY_ALIAS).publicKey
     }
 
-    fun getPrivateKey(): PrivateKey {
-
-        val keyStore = KeyStore.getInstance(KEYSTORE_PROVIDER)
-        keyStore.load(null)
-
-        val entry = keyStore.getEntry(IDENTITY_KEY_ALIAS, null)
-                as KeyStore.PrivateKeyEntry
-
-        return entry.privateKey
-    }
-
-
-    fun getIdentityKeyPair(): KeyPair {
-        return KeyPair(getPublicKey(), getPrivateKey())
-    }
-
-
+    /**
+     * Export public key as raw bytes (for QR)
+     */
     fun getPublicKeyBytes(): ByteArray {
         return getPublicKey().encoded
+    }
+
+    /**
+     * Get fingerprint for verification
+     */
+    fun getFingerprint(): String {
+        return getIdentityKeyPair().fingerprint
+    }
+
+    /**
+     * Delete identity (for logout/reset)
+     */
+    fun clearIdentity() {
+        if (keyStore.containsAlias(KEY_ALIAS)) {
+            keyStore.deleteEntry(KEY_ALIAS)
+        }
     }
 }

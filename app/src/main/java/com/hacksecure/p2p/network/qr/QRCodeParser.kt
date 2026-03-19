@@ -1,24 +1,60 @@
 package com.hacksecure.p2p.network.qr
 
-import java.util.Base64
+import com.hacksecure.p2p.utils.Base64Utils
 
 object QRCodeParser {
 
     data class IdentityQRData(
+        val version: String,
         val userId: String,
-        val publicKey: ByteArray
+        val identityKey: ByteArray,
+        val ephemeralKey: ByteArray
     )
 
     fun parse(payload: String): IdentityQRData {
 
-        val parts = payload.split(":")
+        require(payload.isNotBlank()) {
+            "QR payload cannot be empty"
+        }
 
-        require(parts.size == 2) { "Invalid QR payload" }
+        val parts = payload.split("|")
 
-        val userId = parts[0]
+        require(parts.size == 4) {
+            "Invalid QR format. Expected: v1|userId|identityKey|ephemeralKey"
+        }
 
-        val publicKey = Base64.getDecoder().decode(parts[1])
+        val version = parts[0]
+        val userId = parts[1]
 
-        return IdentityQRData(userId, publicKey)
+        require(version == "v1") {
+            "Unsupported QR version"
+        }
+
+        val identityKey = try {
+            Base64Utils.decode(parts[2])
+        } catch (e: Exception) {
+            throw IllegalArgumentException("Invalid identity key encoding", e)
+        }
+
+        val ephemeralKey = try {
+            Base64Utils.decode(parts[3])
+        } catch (e: Exception) {
+            throw IllegalArgumentException("Invalid ephemeral key encoding", e)
+        }
+
+        require(identityKey.isNotEmpty()) {
+            "Identity key cannot be empty"
+        }
+
+        require(ephemeralKey.isNotEmpty()) {
+            "Ephemeral key cannot be empty"
+        }
+
+        return IdentityQRData(
+            version,
+            userId,
+            identityKey,
+            ephemeralKey
+        )
     }
 }
