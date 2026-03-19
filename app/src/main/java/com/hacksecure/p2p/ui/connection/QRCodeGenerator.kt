@@ -1,26 +1,30 @@
 package com.hacksecure.p2p.ui.connection
 
 import android.graphics.Bitmap
+import android.graphics.Color
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
-import java.util.Base64
+import com.hacksecure.p2p.utils.Base64Utils
 
 object QRCodeGenerator {
 
     private const val QR_SIZE = 600
+    private const val VERSION = "v1"
 
     /**
      * Convert identity public key to a QR payload string
      */
     fun createIdentityPayload(
         userId: String,
-        publicKey: ByteArray
+        identityKey: ByteArray,
+        ephemeralKey: ByteArray
     ): String {
 
-        val encodedKey = Base64.getEncoder().encodeToString(publicKey)
+        val encodedIdentity = Base64Utils.encode(identityKey)
+        val encodedEphemeral = Base64Utils.encode(ephemeralKey)
 
-        return "$userId:$encodedKey"
+        return "$VERSION|$userId|$encodedIdentity|$encodedEphemeral"
     }
 
     /**
@@ -53,14 +57,10 @@ object QRCodeGenerator {
 
         for (x in 0 until width) {
             for (y in 0 until height) {
-
                 bitmap.setPixel(
                     x,
                     y,
-                    if (bitMatrix.get(x, y))
-                        android.graphics.Color.BLACK
-                    else
-                        android.graphics.Color.WHITE
+                    if (bitMatrix.get(x, y)) Color.BLACK else Color.WHITE
                 )
             }
         }

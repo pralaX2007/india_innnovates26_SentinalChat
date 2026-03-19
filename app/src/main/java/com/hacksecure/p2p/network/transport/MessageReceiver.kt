@@ -1,13 +1,13 @@
 package com.hacksecure.p2p.network.transport
 
 import com.hacksecure.p2p.messaging.models.MessagePacket
-import com.hacksecure.p2p.messaging.encryption.MessageDecryptor
+import com.hacksecure.p2p.Protocol.Ratchet.DoubleRatchet
 import com.hacksecure.p2p.utils.SerializationUtils
 import com.hacksecure.p2p.network.wifidirect.ConnectionHandler
 
 class MessageReceiver(
     private val connectionHandler: ConnectionHandler,
-    private val decryptor: MessageDecryptor
+    private val ratchet: DoubleRatchet
 ) {
 
     companion object {
@@ -18,29 +18,29 @@ class MessageReceiver(
     /**
      * Receive and decrypt a message from the given raw bytes
      */
-    fun receive(rawBytes: ByteArray): String? {
+    fun receive(rawData: ByteArray): String {
 
-        require(rawBytes.size <= MAX_PACKET_SIZE) {
-            "Incoming packet exceeds allowed size"
-        }
+        val packet = SerializationUtils.deserialize(rawData)
 
-        val packet: MessagePacket = SerializationUtils.deserialize(rawBytes)
-
-        return decryptor.decrypt(
-            MessageDecryptor.NetworkMessage(
-                headerDh = packet.header.dhPublicKey.let { String(it) },
-                messageNumber = packet.header.messageNumber,
-                previousChainLength = packet.header.previousChainLength,
-                iv = packet.iv.let { String(it) },
-                ciphertext = packet.ciphertext.let { String(it) }
-            )
+        val encrypted = DoubleRatchet.EncryptedMessage(
+            header = DoubleRatchet.Header(
+                packet.header.dhPublicKey,
+                packet.header.messageNumber,
+                packet.header.previousChainLength
+            ),
+            iv = packet.iv,
+            ciphertext = packet.ciphertext
         )
+        if (!sessionManager.validateMessage(peerId, packet.header.messageNumber)) {
+            throw IllegalStateException("Replay detected")
+        }
+        val plaintext = decryptor.decrypt(encrypted)
+
+        return String(plaintext, Charsets.UTF_8)
     }
 
     /**
      * No-arg version for compatibility — returns null (use listener pattern instead)
      */
-    fun receive(): String? {
-        return null
-    }
+
 }

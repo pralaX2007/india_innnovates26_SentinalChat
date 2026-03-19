@@ -1,21 +1,16 @@
 package com.hacksecure.p2p.Protocol.Ratchet
 
-import java.nio.ByteBuffer
-import java.security.SecureRandom
+import com.hacksecure.p2p.security.MemoryCleaner
 
 class MessageKey(
 
     private val key: ByteArray,
-
     val messageIndex: Int
 ) {
 
     companion object {
 
         private const val AES_KEY_LENGTH = 32
-        private const val IV_LENGTH = 12
-
-        private val secureRandom = SecureRandom()
 
         /**
          * Create MessageKey from derived key material
@@ -43,30 +38,9 @@ class MessageKey(
     }
 
     /**
-     * Generate IV for AES-GCM
-     * IV derived from message index to avoid reuse
-     */
-    fun generateIV(): ByteArray {
-
-        val buffer = ByteBuffer.allocate(IV_LENGTH)
-
-        buffer.putInt(messageIndex)
-
-        val random = ByteArray(IV_LENGTH - 4)
-        secureRandom.nextBytes(random)
-
-        buffer.put(random)
-
-        return buffer.array()
-    }
-
-    /**
-     * Destroy key material when no longer needed
+     * Destroy key material after use
      */
     fun destroy() {
-
-        for (i in key.indices) {
-            key[i] = 0
-        }
+        MemoryCleaner.wipe(key)
     }
 }

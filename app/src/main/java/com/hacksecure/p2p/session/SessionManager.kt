@@ -3,32 +3,24 @@ package com.hacksecure.p2p.session
 import com.hacksecure.p2p.Protocol.Ratchet.DoubleRatchet
 import java.time.Instant
 
-class SessionManager(
+object SessionManager(
 
     private val store: EphemeralSessionStore = EphemeralSessionStore()
 
 ) {
 
 
-    fun createSession(
-        peerId: String,
-        ratchet: DoubleRatchet
-    ): SessionState {
-
+    fun createSession(peerId: String, ratchet: DoubleRatchet): SessionState {
         val session = SessionState(
             peerId = peerId,
-            ratchet = ratchet,
-            sessionStartTime = Instant.now().toEpochMilli()
+            ratchet = ratchet
         )
-
         store.put(peerId, session)
-
         return session
     }
 
 
     fun getSession(peerId: String): SessionState {
-
         return store.get(peerId)
             ?: throw IllegalStateException("Session not found for peer: $peerId")
     }
