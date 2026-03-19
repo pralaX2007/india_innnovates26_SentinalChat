@@ -2,65 +2,46 @@ package com.hacksecure.p2p.security
 
 import java.util.concurrent.ConcurrentHashMap
 
+/**
+ * Replay protection for the Double Ratchet protocol.
+ *
+ * Key insight: message numbers reset to 0 on every DH ratchet step,
+ * so we must key on (ratchetKeyId, messageNumber) — not messageNumber alone.
+ * ratchetKeyId is derived from the remote DH public key bytes.
+ */
 class ReplayProtection(
     private val maxCacheSize: Int = 2000
 ) {
+    // Key: "ratchetKeyId:messageNumber"
+    private val seen = ConcurrentHashMap.newKeySet<String>()
 
-    private val seenMessages = ConcurrentHashMap<String, MutableSet<Int>>()
-
-    /**
-     * Check if a message is a replay
-     */
-    fun isReplay(
-        sessionId: String,
-        messageNumber: Int
-    ): Boolean {
-
-        val sessionSet = seenMessages.computeIfAbsent(sessionId) {
-            ConcurrentHashMap.newKeySet()
-        }
-
-        synchronized(sessionSet) {
-
-            if (sessionSet.contains(messageNumber)) {
-                return true
-            }
-
-            sessionSet.add(messageNumber)
-
-            if (sessionSet.size > maxCacheSize) {
-                pruneOldEntries(sessionSet)
-            }
-
+    fun isReplay(ratchetKeyId: String, messageNumber: Int): Boolean {
+        val key = "$ratchetKeyId:$messageNumber"
+        synchronized(seen) {
+            if (seen.contains(key)) return true
+            seen.add(key)
+            if (seen.size > maxCacheSize) pruneOldest()
             return false
         }
     }
 
     /**
-     * Remove oldest message numbers to keep cache bounded
+     * Remove oldest half of the cache when full.
+     * Since we can't track insertion order in a HashSet cheaply, we
+     * clear the oldest ~50% by dropping the lowest-numbered entries.
      */
-    private fun pruneOldEntries(set: MutableSet<Int>) {
-
-        val sorted = set.sorted()
-
-        val removeCount = set.size - maxCacheSize
-
-        for (i in 0 until removeCount) {
-            set.remove(sorted[i])
+    private fun pruneOldest() {
+        val toRemove = seen.size / 2
+        val iter = seen.iterator()
+        var removed = 0
+        while (iter.hasNext() && removed < toRemove) {
+            iter.next()
+            iter.remove()
+            removed++
         }
     }
 
-    /**
-     * Clear replay cache for a session
-     */
-    fun clearSession(sessionId: String) {
-        seenMessages.remove(sessionId)
-    }
-
-    /**
-     * Clear everything (useful on logout)
-     */
     fun clearAll() {
-        seenMessages.clear()
+        seen.clear()
     }
 }

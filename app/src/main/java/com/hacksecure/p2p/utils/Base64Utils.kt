@@ -1,18 +1,15 @@
 package com.hacksecure.p2p.utils
 
-import java.util.Base64
+import android.util.Base64
 
 object Base64Utils {
 
-    private val encoder = Base64.getEncoder()
-    private val decoder = Base64.getDecoder()
-
     fun encode(bytes: ByteArray): String {
-        return encoder.encodeToString(bytes)
+        return Base64.encodeToString(bytes, Base64.NO_WRAP)
     }
 
     fun decode(base64: String): ByteArray {
-        return decoder.decode(base64)
+        return Base64.decode(base64, Base64.NO_WRAP)
     }
 
     fun encodeNullable(bytes: ByteArray?): String? {

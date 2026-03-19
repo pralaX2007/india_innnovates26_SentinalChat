@@ -2,6 +2,7 @@ package com.hacksecure.p2p.Protocol.Ratchet
 
 import com.hacksecure.p2p.crypto.aes.AESGCMCipher
 import com.hacksecure.p2p.crypto.dh.DiffieHellmanHandshake
+import com.hacksecure.p2p.security.MemoryCleaner
 import java.nio.ByteBuffer
 import java.security.KeyPair
 import java.security.PublicKey
@@ -152,6 +153,17 @@ class DoubleRatchet(
                 step.messageKey
 
             receiveMessageNumber++
+        }
+
+        // Fix #7: Global cap on total skipped keys — evict oldest entries first
+        pruneSkippedKeys()
+    }
+
+    private fun pruneSkippedKeys() {
+        while (skippedMessageKeys.size > MAX_SKIP) {
+            val oldestEntry = skippedMessageKeys.entries.firstOrNull() ?: break
+            MemoryCleaner.wipe(oldestEntry.value)
+            skippedMessageKeys.remove(oldestEntry.key)
         }
     }
 

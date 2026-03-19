@@ -5,6 +5,13 @@ import com.hacksecure.p2p.crypto.KeyManager;
 import com.hacksecure.p2p.messaging.models.Session;
 import java.util.UUID;
 
+/**
+ * Legacy session manager for key setup and device discovery phase.
+ * After handshake is complete, com.hacksecure.p2p.session.SessionManager
+ * takes over to manage the ratchet-based session.
+ */
+// TODO [ARCH] Rename to LegacySessionManager or merge into session.SessionManager
+//  to eliminate the confusing duplicate name across packages.
 public class SessionManager {
     private static SessionManager instance;
     private Session currentSession;
@@ -33,12 +40,19 @@ public class SessionManager {
         this.keyManager = keyManager;
     }
 
+    public KeyManager getKeyManager() {
+        return keyManager;
+    }
+
     public void setEncryptionManager(EncryptionManager encryptionManager) {
         this.encryptionManager = encryptionManager;
     }
 
+    public EncryptionManager getEncryptionManager() {
+        return encryptionManager;
+    }
+
     public void endSession() {
-        // Secure cleanup: wipe keys from memory
         if (keyManager != null) {
             keyManager.wipe();
             keyManager = null;

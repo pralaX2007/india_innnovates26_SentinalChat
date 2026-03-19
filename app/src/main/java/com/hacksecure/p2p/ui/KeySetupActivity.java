@@ -6,12 +6,11 @@ import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import com.hacksecure.p2p.R;
-import com.hacksecure.p2p.crypto.KeyManager;
+import com.hacksecure.p2p.identity.IdentityKeyManager;
+import com.hacksecure.p2p.ui.connection.DeviceDiscoveryActivity;
 import com.hacksecure.p2p.utils.Logger;
-import com.hacksecure.p2p.utils.SessionManager;
 
 public class KeySetupActivity extends AppCompatActivity {
-    private KeyManager keyManager;
     private boolean isHost;
 
     @Override
@@ -20,21 +19,17 @@ public class KeySetupActivity extends AppCompatActivity {
         setContentView(R.layout.activity_key_setup);
 
         isHost = getIntent().getBooleanExtra("IS_HOST", false);
-        keyManager = new KeyManager();
-        SessionManager.getInstance().setKeyManager(keyManager);
 
         TextView tvFingerprint = findViewById(R.id.tvFingerprint);
 
         try {
-            keyManager.generateKeyPair();
-            String base64Key = keyManager.publicKeyToBase64();
-            if (base64Key != null) {
-                String fingerprint = base64Key.substring(0, Math.min(base64Key.length(), 16));
-                tvFingerprint.setText(fingerprint);
-            }
+            // Fix #22: Use the real identity key fingerprint from Android Keystore
+            // instead of a truncated Base64 string from the legacy software KeyManager
+            String fingerprint = IdentityKeyManager.INSTANCE.getFingerprint();
+            tvFingerprint.setText(fingerprint);
         } catch (Exception e) {
-            Logger.e("Key generation failed", e);
-            Toast.makeText(this, "Failed to generate keys", Toast.LENGTH_SHORT).show();
+            Logger.e("Failed to get identity fingerprint", e);
+            Toast.makeText(this, "Failed to load identity key", Toast.LENGTH_SHORT).show();
         }
 
         findViewById(R.id.btnContinue).setOnClickListener(v -> {
@@ -44,3 +39,4 @@ public class KeySetupActivity extends AppCompatActivity {
         });
     }
 }
+

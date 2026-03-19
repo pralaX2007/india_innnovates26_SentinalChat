@@ -6,6 +6,8 @@ import java.time.Instant
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
+// TODO [ARCH] This class is currently unused — nothing calls start() or stop().
+//  Either integrate into SentinelChatApp lifecycle or remove as dead code.
 class MessageTTLManager(
 
     private val messageDatabase: MessageDatabase,

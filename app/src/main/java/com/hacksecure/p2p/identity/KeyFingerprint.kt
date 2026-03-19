@@ -8,66 +8,38 @@ object KeyFingerprint {
 
     private const val HASH_ALGORITHM = "SHA-256"
 
-    /**
-     * Generate fingerprint from PublicKey
-     */
     fun generate(publicKey: PublicKey): String {
         return generate(publicKey.encoded)
     }
 
-    /**
-     * Generate fingerprint from raw key bytes
-     */
     fun generate(publicKeyBytes: ByteArray): String {
-
         val digest = MessageDigest.getInstance(HASH_ALGORITHM)
-
         val hash = digest.digest(publicKeyBytes)
-
         return formatFingerprint(hash)
     }
 
-    /**
-     * Format fingerprint into human readable groups
-     * Example:
-     * 3FA9-88D2-7C4E-91AA-FF03-8D12-09AC-77B1
-     */
     private fun formatFingerprint(hash: ByteArray): String {
-
-        val hex = hash.joinToString("") {
-            "%02X".format(Locale.US, it)
-        }
-
+        val hex = hash.joinToString("") { "%02X".format(it) }
         return hex.chunked(4).joinToString("-")
     }
 
-    /**
-     * Compare two fingerprints safely
-     */
-    fun matches(
-        publicKeyA: ByteArray,
-        publicKeyB: ByteArray
-    ): Boolean {
-
+    fun matches(publicKeyA: ByteArray, publicKeyB: ByteArray): Boolean {
         val fpA = generate(publicKeyA)
         val fpB = generate(publicKeyB)
-
         return constantTimeEquals(fpA, fpB)
     }
 
     /**
-     * Constant-time comparison to avoid timing leaks
+     * Constant-time comparison — pads shorter string to avoid length timing leak.
      */
     private fun constantTimeEquals(a: String, b: String): Boolean {
-
-        if (a.length != b.length) return false
-
-        var result = 0
-
-        for (i in a.indices) {
-            result = result or (a[i].code xor b[i].code)
+        val maxLen = maxOf(a.length, b.length)
+        var result = a.length xor b.length  // encodes length difference without branching
+        for (i in 0 until maxLen) {
+            val ca = if (i < a.length) a[i].code else 0
+            val cb = if (i < b.length) b[i].code else 0
+            result = result or (ca xor cb)
         }
-
         return result == 0
     }
 }

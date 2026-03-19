@@ -23,6 +23,9 @@ local.properties
 *.jar
 *.keystore
 *.keystore.properties
+*.jks
+signing.properties
+release.keystore.properties
 
 # Generated files
 app/src/main/gen/

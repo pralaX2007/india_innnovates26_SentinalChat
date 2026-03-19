@@ -1,14 +1,10 @@
 package com.hacksecure.p2p.session
 
 import com.hacksecure.p2p.Protocol.Ratchet.DoubleRatchet
-import java.time.Instant
 
-object SessionManager(
+object SessionManager {
 
-    private val store: EphemeralSessionStore = EphemeralSessionStore()
-
-) {
-
+    private val store = EphemeralSessionStore()
 
     fun createSession(peerId: String, ratchet: DoubleRatchet): SessionState {
         val session = SessionState(
@@ -19,31 +15,22 @@ object SessionManager(
         return session
     }
 
-
-    fun getSession(peerId: String): SessionState {
+    fun getSession(peerId: String): SessionState? {
         return store.get(peerId)
-            ?: throw IllegalStateException("Session not found for peer: $peerId")
     }
 
-
     fun destroySession(peerId: String) {
-
         store.remove(peerId)
     }
 
-
     fun validateMessage(peerId: String, messageNumber: Int): Boolean {
-
-        val session = getSession(peerId)
-
+        val session = getSession(peerId) ?: return false
         if (session.isReplay(messageNumber)) {
             return false
         }
-
         session.recordMessage(messageNumber)
         return true
     }
-
 
     fun destroyAllSessions() {
         store.clear()

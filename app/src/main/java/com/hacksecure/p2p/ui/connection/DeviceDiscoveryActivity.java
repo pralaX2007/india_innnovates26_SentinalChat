@@ -1,4 +1,4 @@
-package com.hacksecure.p2p.ui;
+package com.hacksecure.p2p.ui.connection;   // Fixed: was com.hacksecure.p2p.ui (wrong package)
 
 import android.Manifest;
 import android.content.Intent;
@@ -21,6 +21,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.hacksecure.p2p.R;
 import com.hacksecure.p2p.network.wifidirect.WifiDirectManager;
+import com.hacksecure.p2p.ui.ChatActivity;
 import com.hacksecure.p2p.utils.Logger;
 
 import java.util.ArrayList;
@@ -55,6 +56,7 @@ public class DeviceDiscoveryActivity extends AppCompatActivity implements WifiDi
     private void checkPermissionsAndStart() {
         List<String> permissions = new ArrayList<>();
         permissions.add(Manifest.permission.ACCESS_FINE_LOCATION);
+        permissions.add(Manifest.permission.CAMERA);  // Required for QR scanner in ChatActivity
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permissions.add(Manifest.permission.NEARBY_WIFI_DEVICES);
         }
@@ -71,6 +73,25 @@ public class DeviceDiscoveryActivity extends AppCompatActivity implements WifiDi
             startWifiDirectAction();
         } else {
             ActivityCompat.requestPermissions(this, permissions.toArray(new String[0]), PERMISSIONS_REQUEST_CODE);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == PERMISSIONS_REQUEST_CODE) {
+            boolean allGranted = true;
+            for (int result : grantResults) {
+                if (result != PackageManager.PERMISSION_GRANTED) {
+                    allGranted = false;
+                    break;
+                }
+            }
+            if (allGranted) {
+                startWifiDirectAction();
+            } else {
+                Toast.makeText(this, "Permissions required to connect", Toast.LENGTH_LONG).show();
+            }
         }
     }
 
@@ -121,7 +142,7 @@ public class DeviceDiscoveryActivity extends AppCompatActivity implements WifiDi
         wifiDirectManager.cleanup();
     }
 
-    private static class PeerAdapter extends RecyclerView.Adapter<PeerAdapter.ViewHolder> {
+    static class PeerAdapter extends RecyclerView.Adapter<PeerAdapter.ViewHolder> {
         private final List<WifiP2pDevice> peers;
         private final OnPeerClickListener listener;
 

@@ -8,38 +8,38 @@ import java.security.PublicKey
 import java.security.spec.PKCS8EncodedKeySpec
 import java.security.spec.X509EncodedKeySpec
 
+/**
+ * Serializable snapshot of a DoubleRatchet state.
+ *
+ * NOTE: Only ephemeral (in-memory) EC keys can be serialized this way.
+ * AndroidKeyStore-backed keys return null from getEncoded() — those
+ * are identity keys and are never stored here; only ephemeral DH keys are.
+ */
 data class RatchetState(
-
     val rootKey: ByteArray,
-
     val sendingChainKey: ByteArray?,
-
     val receivingChainKey: ByteArray?,
-
     val dhPrivateKey: ByteArray,
-
     val dhPublicKey: ByteArray,
-
     val remoteDhPublicKey: ByteArray,
-
     val sendMessageNumber: Int,
-
     val receiveMessageNumber: Int,
-
     val previousChainLength: Int
 ) {
-
     companion object {
 
         private const val KEY_ALGORITHM = "EC"
 
         fun fromRatchet(ratchet: DoubleRatchet): RatchetState {
-
+            val privateKeyBytes = ratchet.getDhKeyPair().private.encoded
+                ?: throw IllegalStateException(
+                    "Private key cannot be exported — ensure only ephemeral keys are stored in RatchetState"
+                )
             return RatchetState(
                 rootKey = ratchet.getRootKey().getKeyBytes(),
                 sendingChainKey = ratchet.getSendingChainKey()?.getKeyBytes(),
                 receivingChainKey = ratchet.getReceivingChainKey()?.getKeyBytes(),
-                dhPrivateKey = ratchet.getDhKeyPair().private.encoded,
+                dhPrivateKey = privateKeyBytes,
                 dhPublicKey = ratchet.getDhKeyPair().public.encoded,
                 remoteDhPublicKey = ratchet.getRemoteDhPublicKey().encoded,
                 sendMessageNumber = ratchet.getSendMessageNumber(),
@@ -49,43 +49,21 @@ data class RatchetState(
         }
 
         fun toRatchet(state: RatchetState): DoubleRatchet {
-
             val keyFactory = KeyFactory.getInstance(KEY_ALGORITHM)
-
-            val privateKey: PrivateKey = keyFactory.generatePrivate(
-                PKCS8EncodedKeySpec(state.dhPrivateKey)
-            )
-
-            val publicKey: PublicKey = keyFactory.generatePublic(
-                X509EncodedKeySpec(state.dhPublicKey)
-            )
-
-            val remotePublicKey: PublicKey = keyFactory.generatePublic(
-                X509EncodedKeySpec(state.remoteDhPublicKey)
-            )
-
-            val keyPair = KeyPair(publicKey, privateKey)
-
-            val rootKey = RootKey(state.rootKey)
-
-            val sendingChainKey = state.sendingChainKey?.let { ChainKey(it) }
-
-            val receivingChainKey = state.receivingChainKey?.let { ChainKey(it) }
+            val privateKey: PrivateKey = keyFactory.generatePrivate(PKCS8EncodedKeySpec(state.dhPrivateKey))
+            val publicKey: PublicKey = keyFactory.generatePublic(X509EncodedKeySpec(state.dhPublicKey))
+            val remotePublicKey: PublicKey = keyFactory.generatePublic(X509EncodedKeySpec(state.remoteDhPublicKey))
 
             return DoubleRatchet(
-                rootKey = rootKey,
-                sendingChainKey = sendingChainKey,
-                receivingChainKey = receivingChainKey,
-                dhKeyPair = keyPair,
+                rootKey = RootKey(state.rootKey),
+                sendingChainKey = state.sendingChainKey?.let { ChainKey(it) },
+                receivingChainKey = state.receivingChainKey?.let { ChainKey(it) },
+                dhKeyPair = KeyPair(publicKey, privateKey),
                 remoteDhPublicKey = remotePublicKey
             )
         }
 
-        /**
-         * Decode from DB map
-         */
         fun decode(map: Map<String, String>): RatchetState {
-
             return RatchetState(
                 rootKey = Base64Utils.decode(map["rootKey"]!!),
                 sendingChainKey = map["sendingChainKey"]?.takeIf { it.isNotEmpty() }?.let { Base64Utils.decode(it) },
@@ -100,11 +78,7 @@ data class RatchetState(
         }
     }
 
-    /**
-     * Encode for DB storage
-     */
     fun encode(): Map<String, String> {
-
         return mapOf(
             "rootKey" to Base64Utils.encode(rootKey),
             "sendingChainKey" to (sendingChainKey?.let { Base64Utils.encode(it) } ?: ""),

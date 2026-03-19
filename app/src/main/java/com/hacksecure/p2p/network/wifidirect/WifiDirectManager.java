@@ -18,8 +18,11 @@ import com.hacksecure.p2p.utils.Logger;
 import java.util.ArrayList;
 import java.util.List;
 
+// TODO [WIFI] Add a ConnectionState enum (IDLE, DISCOVERING, CONNECTING, CONNECTED, DISCONNECTED)
+//  and guard all operations with state checks to prevent invalid transitions.
 public class WifiDirectManager {
-    private final Context context;
+    private final Context appContext;
+    private Context registrationContext;  // The context used to register the receiver
     private final WifiP2pManager manager;
     private final WifiP2pManager.Channel channel;
     private BroadcastReceiver receiver;
@@ -32,10 +35,12 @@ public class WifiDirectManager {
         void onError(String message);
     }
 
+    // Fix #27: Store application context to prevent Activity leak
     public WifiDirectManager(Context context) {
-        this.context = context;
-        this.manager = (WifiP2pManager) context.getSystemService(Context.WIFI_P2P_SERVICE);
-        this.channel = manager.initialize(context, Looper.getMainLooper(), null);
+        this.appContext = context.getApplicationContext();
+        this.registrationContext = context;  // Keep Activity context for receiver registration
+        this.manager = (WifiP2pManager) appContext.getSystemService(Context.WIFI_P2P_SERVICE);
+        this.channel = manager.initialize(appContext, Looper.getMainLooper(), null);
     }
 
     public void setListener(WifiDirectListener listener) {
@@ -83,9 +88,9 @@ public class WifiDirectManager {
         };
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.registerReceiver(receiver, intentFilter, Context.RECEIVER_EXPORTED);
+            registrationContext.registerReceiver(receiver, intentFilter, Context.RECEIVER_EXPORTED);
         } else {
-            context.registerReceiver(receiver, intentFilter);
+            registrationContext.registerReceiver(receiver, intentFilter);
         }
     }
 
@@ -109,6 +114,8 @@ public class WifiDirectManager {
     public void connectToPeer(WifiP2pDevice device) {
         WifiP2pConfig config = new WifiP2pConfig();
         config.deviceAddress = device.deviceAddress;
+        // TODO [WIFI] Set config.groupOwnerIntent based on isHost role
+        //  (15 = want to be GO, 0 = prefer client) to avoid random GO negotiation.
         manager.connect(channel, config, new WifiP2pManager.ActionListener() {
             @Override
             public void onSuccess() { Logger.d("Connecting to " + device.deviceName); }
@@ -136,9 +143,10 @@ public class WifiDirectManager {
     }
 
     public void cleanup() {
-        if (receiver != null) {
-            context.unregisterReceiver(receiver);
+        if (receiver != null && registrationContext != null) {
+            registrationContext.unregisterReceiver(receiver);
             receiver = null;
+            registrationContext = null;  // Release Activity reference
         }
     }
 }
