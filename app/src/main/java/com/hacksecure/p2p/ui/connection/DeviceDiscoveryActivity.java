@@ -1,4 +1,4 @@
-package com.hacksecure.p2p.ui.connection;   // Fixed: was com.hacksecure.p2p.ui (wrong package)
+package com.hacksecure.p2p.ui.connection;
 
 import android.Manifest;
 import android.content.Intent;
@@ -10,6 +10,7 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -20,8 +21,9 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.hacksecure.p2p.R;
+import com.hacksecure.p2p.network.wifidirect.PeerDiscovery;
 import com.hacksecure.p2p.network.wifidirect.WifiDirectManager;
-import com.hacksecure.p2p.ui.ChatActivity;
+import com.hacksecure.p2p.ui.HandshakeActivity;
 import com.hacksecure.p2p.utils.Logger;
 
 import java.util.ArrayList;
@@ -31,16 +33,22 @@ public class DeviceDiscoveryActivity extends AppCompatActivity implements WifiDi
     private WifiDirectManager wifiDirectManager;
     private PeerAdapter adapter;
     private TextView tvStatus;
-    private boolean isHost;
+    private TextView tvEmptyState;
+    private boolean isHost = false;
     private static final int PERMISSIONS_REQUEST_CODE = 1001;
+
+    private final PeerDiscovery peerDiscovery = new PeerDiscovery();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_device_discovery);
 
-        isHost = getIntent().getBooleanExtra("IS_HOST", false);
         tvStatus = findViewById(R.id.tvStatus);
+        tvEmptyState = findViewById(R.id.tvEmptyState);
+        Button btnHost = findViewById(R.id.btnHost);
+        Button btnJoin = findViewById(R.id.btnJoin);
+
         RecyclerView rvPeers = findViewById(R.id.rvPeers);
         rvPeers.setLayoutManager(new LinearLayoutManager(this));
         adapter = new PeerAdapter(new ArrayList<>(), this::onPeerClicked);
@@ -50,13 +58,23 @@ public class DeviceDiscoveryActivity extends AppCompatActivity implements WifiDi
         wifiDirectManager.setListener(this);
         wifiDirectManager.initialize();
 
-        checkPermissionsAndStart();
+        btnHost.setOnClickListener(v -> {
+            isHost = true;
+            checkPermissionsAndStart();
+        });
+
+        btnJoin.setOnClickListener(v -> {
+            isHost = false;
+            checkPermissionsAndStart();
+        });
+
+        tvStatus.setText("Select role to begin");
     }
 
     private void checkPermissionsAndStart() {
         List<String> permissions = new ArrayList<>();
         permissions.add(Manifest.permission.ACCESS_FINE_LOCATION);
-        permissions.add(Manifest.permission.CAMERA);  // Required for QR scanner in ChatActivity
+        permissions.add(Manifest.permission.CAMERA);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permissions.add(Manifest.permission.NEARBY_WIFI_DEVICES);
         }
@@ -106,19 +124,32 @@ public class DeviceDiscoveryActivity extends AppCompatActivity implements WifiDi
     }
 
     private void onPeerClicked(WifiP2pDevice device) {
-        wifiDirectManager.connectToPeer(device);
+        WifiP2pDevice verifiedPeer = peerDiscovery.findPeerByAddress(device.deviceAddress);
+        if (verifiedPeer != null) {
+            wifiDirectManager.connectToPeer(verifiedPeer, isHost);
+        } else {
+            wifiDirectManager.connectToPeer(device, isHost);
+        }
     }
 
     @Override
     public void onPeersAvailable(List<WifiP2pDevice> peers) {
-        runOnUiThread(() -> adapter.updatePeers(peers));
+        peerDiscovery.updatePeers(peers);
+        runOnUiThread(() -> {
+            if (peers.isEmpty() && !isHost) {
+                tvEmptyState.setVisibility(View.VISIBLE);
+            } else {
+                tvEmptyState.setVisibility(View.GONE);
+            }
+            adapter.updatePeers(peers);
+        });
     }
 
     @Override
     public void onConnected(WifiP2pInfo info) {
         runOnUiThread(() -> {
             Toast.makeText(this, "Connected!", Toast.LENGTH_SHORT).show();
-            Intent intent = new Intent(this, ChatActivity.class);
+            Intent intent = new Intent(this, HandshakeActivity.class);
             intent.putExtra("IS_HOST", isHost);
             intent.putExtra("GROUP_OWNER_ADDRESS", info.groupOwnerAddress.getHostAddress());
             startActivity(intent);

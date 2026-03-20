@@ -1,243 +1,168 @@
 package com.hacksecure.p2p.ui;
 
-import android.graphics.Bitmap;
+import android.content.Intent;
+import android.graphics.Color;
 import android.os.Bundle;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.EditText;
-import android.widget.ImageView;
+import android.widget.ImageButton;
+import android.widget.LinearLayout;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.hacksecure.p2p.Protocol.Ratchet.DoubleRatchet;
-import com.hacksecure.p2p.Protocol.handshake.QRHandshake;
+import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.hacksecure.p2p.R;
-import com.hacksecure.p2p.crypto.dh.DiffieHellmanHandshake;
-import com.hacksecure.p2p.identity.IdentityKeyManager;
-import com.hacksecure.p2p.messaging.models.MessageMetadata;
-import com.hacksecure.p2p.messaging.models.MessagePacket;
-import com.hacksecure.p2p.messaging.models.RatchetHeader;
-import com.hacksecure.p2p.network.transport.MessageReceiver;
-import com.hacksecure.p2p.network.transport.MessageSender;
-import com.hacksecure.p2p.network.wifidirect.ConnectionHandler;
-import com.hacksecure.p2p.session.SessionManager;
-import com.hacksecure.p2p.ui.connection.QRCodeGenerator;
-import com.hacksecure.p2p.ui.connection.QRCodeScanner;
-import com.hacksecure.p2p.utils.Logger;
+import com.hacksecure.p2p.SentinelChatApp;
 
-import java.nio.charset.StandardCharsets;
-import java.security.KeyPair;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
-// TODO [ARCH] Refactor into MVVM: extract ChatViewModel (ratchet + send/receive),
-//  ConnectionRepository (wraps ConnectionHandler), and HandshakeManager (QR + DH flow).
-//  This Activity currently handles 6+ responsibilities directly.
 public class ChatActivity extends AppCompatActivity {
 
-    private ConnectionHandler connectionHandler;
-    private MessageSender messageSender;
-    private MessageReceiver messageReceiver;  // Fix #15: single instance, not per-message
-
-    private DoubleRatchet ratchet;   // null until handshake completes
-
+    private ChatViewModel chatViewModel;
     private MessageAdapter adapter;
-    private QRCodeScanner qrCodeScanner;
+    private long currentTtlSeconds = 0L;
 
+    private TextView tvConnectionStatus;
     private EditText etMessage;
-    private View btnSend;
-    private ImageView ivQr;
+    private Button btnSend;
+    private ImageButton btnTtl;
+    private TextView tvToolbarTitle;
+    private View btnSessionDetail;
 
-    private final String selfId = "Device_" + android.os.Build.MODEL;
-    private String peerId = "peer";
-
-    private boolean handshakeDone = false;
-
-    // Fix #4: Retain ephemeral key pair so private key is available for responder handshake
-    private KeyPair localEphemeralKeyPair;
+    private String peerId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_chat);
 
+        peerId = getIntent().getStringExtra("PEER_ID");
+        boolean isHost = getIntent().getBooleanExtra("IS_HOST", false);
+        String groupOwnerAddress = getIntent().getStringExtra("GROUP_OWNER_ADDRESS");
+
+        tvConnectionStatus = findViewById(R.id.tvConnectionStatus);
         etMessage = findViewById(R.id.etMessage);
-        btnSend   = findViewById(R.id.btnSend);
-        ivQr      = findViewById(R.id.ivQr);
+        btnSend = findViewById(R.id.btnSend);
+        btnTtl = findViewById(R.id.btnTtl);
+        tvToolbarTitle = findViewById(R.id.tvToolbarTitle);
+        btnSessionDetail = findViewById(R.id.btnSessionDetail);
 
         RecyclerView rvMessages = findViewById(R.id.rvMessages);
         rvMessages.setLayoutManager(new LinearLayoutManager(this));
-        adapter = new MessageAdapter(new ArrayList<>(), selfId);
+        adapter = new MessageAdapter(new ArrayList<>());
         rvMessages.setAdapter(adapter);
 
-        connectionHandler = new ConnectionHandler();
+        ChatViewModelFactory factory = new ChatViewModelFactory(
+                SentinelChatApp.connectionRepository,
+                SentinelChatApp.sessionRepository,
+                peerId
+        );
+        chatViewModel = new ViewModelProvider(this, factory).get(ChatViewModel.class);
 
-        // Step 1 — Show our QR code so the peer can scan us
-        generateAndDisplayQR();
-
-        // Step 2 — Start scanning the peer's QR code
-        startQRScanning();
-
-        messageSender = new MessageSender(connectionHandler);
-
-        // Step 3 — Send button (only works after handshake)
-        btnSend.setOnClickListener(v -> sendMessage());
-
-        // Step 4 — Set up connection listener
-        connectionHandler.setListener(new ConnectionHandler.MessageReceiveListener() {
-            @Override
-            public void onConnected() {}
-
-            @Override
-            public void onMessageReceived(byte[] rawData) {
-                if (!handshakeDone || ratchet == null || messageReceiver == null) return;
-                try {
-                    String message = messageReceiver.receive(rawData);
-                    if (message != null) {
-                        runOnUiThread(() -> adapter.addMessage(message, false));
-                    }
-                } catch (Exception e) {
-                    // Fix #2: No e.printStackTrace() — use Logger instead to avoid leaking crypto state
-                    Logger.e("Message receive error: " + e.getClass().getSimpleName());
-                }
-            }
-
-            @Override
-            public void onConnectionLost() {
-                // TODO [WIFI] Implement reconnection with exponential backoff.
-                //  Re-use existing ratchet state (don't re-handshake).
-                //  Attempt reconnect for up to 30 seconds before giving up.
-                runOnUiThread(() ->
-                        Toast.makeText(ChatActivity.this, "Connection lost", Toast.LENGTH_SHORT).show());
-            }
-        });
-
-        boolean isHost = getIntent().getBooleanExtra("IS_HOST", false);
-        String host    = getIntent().getStringExtra("GROUP_OWNER_ADDRESS");
-
-        // Step 5 — Start TCP layer
-        if (isHost) {
-            connectionHandler.startServer();
-        } else {
-            connectionHandler.connectToHost(host);
-        }
-    }
-
-    private void generateAndDisplayQR() {
+        // Fetch fingerprint for toolbar
+        String peerIdentityKey = "Unknown";
         try {
-            byte[] identityKey  = IdentityKeyManager.INSTANCE.getPublicKeyBytes();
-            byte[] ephemeralKey = generateEphemeralKey();
-            String payload = QRCodeGenerator.INSTANCE.createIdentityPayload(selfId, identityKey, ephemeralKey);
-            Bitmap qrBitmap = QRCodeGenerator.INSTANCE.generateQRCode(payload);
-            ivQr.setImageBitmap(qrBitmap);
-        } catch (Exception e) {
-            // Fix #2: No e.printStackTrace()
-            Logger.e("QR generation failed: " + e.getClass().getSimpleName());
-            Toast.makeText(this, "QR generation failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
-        }
-    }
+            com.hacksecure.p2p.storage.SessionDatabase.StoredSession s = SentinelChatApp.sessionRepository.loadSession(peerId);
+            if (s != null) {
+                peerIdentityKey = com.hacksecure.p2p.identity.KeyFingerprint.INSTANCE.generate(s.getIdentityKey());
+                tvToolbarTitle.setText("← " + peerIdentityKey.substring(0, 9) + "...");
+            } else {
+                tvToolbarTitle.setText("← Unknown Peer...");
+            }
+        } catch (Exception e) {}
 
-    /**
-     * Start scanning the peer's QR code.
-     * Once scanned, performs the DH handshake and initialises the ratchet.
-     */
-    private void startQRScanning() {
-        // Only scan if we haven't completed a handshake yet
-        if (handshakeDone) return;
-
-        qrCodeScanner = new QRCodeScanner(this, payload -> {
-            if (handshakeDone) return kotlin.Unit.INSTANCE;
-            runOnUiThread(() -> {
-                try {
-                    QRHandshake.HandshakeResult result = QRHandshake.INSTANCE.performHandshake(payload);
-                    peerId  = result.getRemoteUserId();
-                    ratchet = result.getRatchet();
-
-                    // Register session
-                    SessionManager.INSTANCE.createSession(peerId, ratchet);
-
-                    // Fix #15: Create single MessageReceiver instance after handshake
-                    messageReceiver = new MessageReceiver(connectionHandler, ratchet, peerId);
-
-                    handshakeDone = true;
-
-                    // Hide QR display, show chat UI
-                    ivQr.setVisibility(View.GONE);
-
-                    qrCodeScanner.stopScanner();
-
-                    Toast.makeText(this, "Secure session established!", Toast.LENGTH_SHORT).show();
-                } catch (Exception e) {
-                    Toast.makeText(this, "Handshake failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
-                }
-            });
-            return kotlin.Unit.INSTANCE;
+        btnSessionDetail.setOnClickListener(v -> {
+            Intent intent = new Intent(this, SessionDetailActivity.class);
+            intent.putExtra("PEER_ID", peerId);
+            com.hacksecure.p2p.storage.SessionDatabase.StoredSession s = SentinelChatApp.sessionRepository.loadSession(peerId);
+            if (s != null) {
+                intent.putExtra("SESSION_START_TIME", s.getSessionStartTime());
+            }
+            startActivityForResult(intent, 1001);
         });
 
-        // Find a PreviewView in the layout (must exist — see activity_chat.xml)
-        androidx.camera.view.PreviewView previewView = findViewById(R.id.previewView);
-        if (previewView != null) {
-            qrCodeScanner.startScanner(this, previewView);
+        chatViewModel.getMessages().observe(this, messages -> {
+            adapter.setMessages(messages);
+            if (!messages.isEmpty()) {
+                rvMessages.smoothScrollToPosition(messages.size() - 1);
+            }
+        });
+
+        chatViewModel.getConnectionState().observe(this, state -> {
+            switch (state) {
+                case IDLE:
+                case CONNECTED:
+                    tvConnectionStatus.setText("🔒 Connected · Double Ratchet · E2E");
+                    tvConnectionStatus.setBackgroundColor(Color.parseColor("#00AA00"));
+                    break;
+                case CONNECTING:
+                case RECONNECTING:
+                    tvConnectionStatus.setText("⚠ Reconnecting...");
+                    tvConnectionStatus.setBackgroundColor(Color.parseColor("#FFA500"));
+                    break;
+                case DISCONNECTED:
+                case FAILED:
+                    tvConnectionStatus.setText("✕ Connection lost");
+                    tvConnectionStatus.setBackgroundColor(Color.parseColor("#AA0000"));
+                    break;
+            }
+        });
+
+        btnSend.setOnClickListener(v -> {
+            String text = etMessage.getText().toString().trim();
+            if (!text.isEmpty()) {
+                chatViewModel.send(text, currentTtlSeconds);
+                etMessage.setText("");
+            }
+        });
+
+        btnTtl.setOnClickListener(v -> showTtlSelector());
+
+        if (isHost) {
+            SentinelChatApp.connectionRepository.startServer();
+        } else {
+            SentinelChatApp.connectionRepository.connectToHost(groupOwnerAddress);
         }
     }
 
-    /**
-     * Fix #4: Generate ephemeral key pair and RETAIN the private key for handshake.
-     * Previously, only the public key was returned and the private key was discarded,
-     * making the responder unable to compute the matching shared secret.
-     */
-    private byte[] generateEphemeralKey() {
-        localEphemeralKeyPair = DiffieHellmanHandshake.INSTANCE.generateEphemeralKeyPair();
-        return localEphemeralKeyPair.getPublic().getEncoded();
+    private void showTtlSelector() {
+        BottomSheetDialog dialog = new BottomSheetDialog(this);
+        View view = getLayoutInflater().inflate(R.layout.bottom_sheet_ttl, null);
+        dialog.setContentView(view);
+
+        view.findViewById(R.id.ttl_none).setOnClickListener(v -> { currentTtlSeconds = 0; dialog.dismiss(); });
+        view.findViewById(R.id.ttl_5m).setOnClickListener(v -> { currentTtlSeconds = 300; dialog.dismiss(); });
+        view.findViewById(R.id.ttl_1h).setOnClickListener(v -> { currentTtlSeconds = 3600; dialog.dismiss(); });
+        view.findViewById(R.id.ttl_24h).setOnClickListener(v -> { currentTtlSeconds = 86400; dialog.dismiss(); });
+        view.findViewById(R.id.ttl_read).setOnClickListener(v -> { currentTtlSeconds = -1; dialog.dismiss(); });
+
+        dialog.show();
     }
 
-    private void sendMessage() {
-        if (!handshakeDone || ratchet == null) {
-            Toast.makeText(this, "Scan peer's QR code first", Toast.LENGTH_SHORT).show();
-            return;
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == 1001 && resultCode == RESULT_OK) {
+            finish();
         }
-
-        String text = etMessage.getText().toString().trim();
-        if (text.isEmpty()) return;
-
-        byte[] plaintext = text.getBytes(StandardCharsets.UTF_8);
-
-        DoubleRatchet.EncryptedMessage encrypted = ratchet.encrypt(plaintext);
-
-        RatchetHeader header = new RatchetHeader(
-                encrypted.getHeader().getDhPublicKey(),
-                encrypted.getHeader().getMessageNumber(),
-                encrypted.getHeader().getPreviousChainLength()
-        );
-
-        MessageMetadata metadata = new MessageMetadata(
-                selfId,
-                UUID.randomUUID().toString(),
-                System.currentTimeMillis(),
-                0
-        );
-
-        MessagePacket packet = new MessagePacket(header, encrypted.getIv(), encrypted.getCiphertext(), metadata);
-
-        messageSender.send(packet);
-
-        adapter.addMessage(text, true);
-        etMessage.setText("");
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (qrCodeScanner != null) qrCodeScanner.stopScanner();
-        connectionHandler.close();
-        SessionManager.INSTANCE.destroySession(peerId);
+        if (isFinishing() && peerId != null) {
+            chatViewModel.destroySession();
+        }
     }
 
     // ──────────────────────────────────────────────────
@@ -245,27 +170,15 @@ public class ChatActivity extends AppCompatActivity {
     // ──────────────────────────────────────────────────
 
     static class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHolder> {
+        private List<ChatViewModel.ChatMessage> messages;
 
-        static class ChatMessage {
-            final String text;
-            final boolean isSelf;
-            ChatMessage(String text, boolean isSelf) {
-                this.text   = text;
-                this.isSelf = isSelf;
-            }
-        }
-
-        private final List<ChatMessage> messages;
-        private final String selfId;
-
-        MessageAdapter(List<ChatMessage> messages, String selfId) {
+        MessageAdapter(List<ChatViewModel.ChatMessage> messages) {
             this.messages = messages;
-            this.selfId   = selfId;
         }
 
-        void addMessage(String text, boolean isSelf) {
-            messages.add(new ChatMessage(text, isSelf));
-            notifyItemInserted(messages.size() - 1);
+        void setMessages(List<ChatViewModel.ChatMessage> messages) {
+            this.messages = messages;
+            notifyDataSetChanged();
         }
 
         @NonNull
@@ -278,10 +191,33 @@ public class ChatActivity extends AppCompatActivity {
 
         @Override
         public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-            ChatMessage msg = messages.get(position);
-            holder.tvMessage.setText(msg.text);
-            holder.tvMessage.setTextAlignment(
-                    msg.isSelf ? View.TEXT_ALIGNMENT_VIEW_END : View.TEXT_ALIGNMENT_VIEW_START);
+            ChatViewModel.ChatMessage msg = messages.get(position);
+            holder.tvMessage.setText(msg.getText());
+
+            LinearLayout container = (LinearLayout) holder.tvMessage.getParent();
+            LinearLayout parentLayout = (LinearLayout) container.getParent();
+            if (msg.isSelf()) {
+                parentLayout.setGravity(Gravity.END);
+                container.setBackgroundResource(R.drawable.bg_message_sent);
+            } else {
+                parentLayout.setGravity(Gravity.START);
+                container.setBackgroundResource(R.drawable.bg_message_received);
+            }
+
+            if (msg.getTtlSeconds() > 0) {
+                holder.tvTtl.setVisibility(View.VISIBLE);
+                long expiresInSecs = ((msg.getTimestamp() + msg.getTtlSeconds() * 1000) - System.currentTimeMillis()) / 1000;
+                if (expiresInSecs > 0) {
+                    holder.tvTtl.setText("⏱ Expires in " + expiresInSecs + "s");
+                } else {
+                    holder.tvTtl.setText("⏱ Expired");
+                }
+            } else if (msg.getTtlSeconds() == -1) {
+                holder.tvTtl.setVisibility(View.VISIBLE);
+                holder.tvTtl.setText("⏱ On read");
+            } else {
+                holder.tvTtl.setVisibility(View.GONE);
+            }
         }
 
         @Override
@@ -289,9 +225,11 @@ public class ChatActivity extends AppCompatActivity {
 
         static class ViewHolder extends RecyclerView.ViewHolder {
             TextView tvMessage;
+            TextView tvTtl;
             ViewHolder(View itemView) {
                 super(itemView);
                 tvMessage = itemView.findViewById(R.id.tvMessage);
+                tvTtl = itemView.findViewById(R.id.tvTtl);
             }
         }
     }

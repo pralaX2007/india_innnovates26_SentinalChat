@@ -27,7 +27,7 @@
         android:usesCleartextTraffic="false">
 
         <activity
-            android:name=".ui.StartSessionActivity"
+            android:name=".ui.SplashActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -35,11 +35,10 @@
             </intent-filter>
         </activity>
 
-        <activity android:name=".ui.KeySetupActivity" />
-
-        <!-- Fixed: correct package path for DeviceDiscoveryActivity -->
+        <activity android:name=".ui.IdentityActivity" />
+        <activity android:name=".ui.HandshakeActivity" />
+        <activity android:name=".ui.SessionDetailActivity" />
         <activity android:name=".ui.connection.DeviceDiscoveryActivity" />
-
         <activity android:name=".ui.ChatActivity" />
 
     </application>

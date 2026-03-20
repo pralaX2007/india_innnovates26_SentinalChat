@@ -111,11 +111,10 @@ public class WifiDirectManager {
     }
 
     @SuppressLint("MissingPermission")
-    public void connectToPeer(WifiP2pDevice device) {
+    public void connectToPeer(WifiP2pDevice device, boolean isHost) {
         WifiP2pConfig config = new WifiP2pConfig();
         config.deviceAddress = device.deviceAddress;
-        // TODO [WIFI] Set config.groupOwnerIntent based on isHost role
-        //  (15 = want to be GO, 0 = prefer client) to avoid random GO negotiation.
+        config.groupOwnerIntent = isHost ? 15 : 0;
         manager.connect(channel, config, new WifiP2pManager.ActionListener() {
             @Override
             public void onSuccess() { Logger.d("Connecting to " + device.deviceName); }

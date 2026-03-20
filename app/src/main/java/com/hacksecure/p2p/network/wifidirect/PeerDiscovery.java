@@ -16,6 +16,13 @@ public class PeerDiscovery {
         }
     }
 
+    public void updatePeers(List<WifiP2pDevice> peers) {
+        discoveredPeers.clear();
+        if (peers != null) {
+            discoveredPeers.addAll(peers);
+        }
+    }
+
     public List<WifiP2pDevice> getPeers() {
         return new ArrayList<>(discoveredPeers);
     }
