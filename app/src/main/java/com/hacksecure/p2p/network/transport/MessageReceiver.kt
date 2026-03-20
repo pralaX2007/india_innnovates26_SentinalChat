@@ -22,9 +22,16 @@ class MessageReceiver(
 
         val packet = SerializationUtils.deserialize(rawData)
 
-        // Fixed: sessionManager and peerId are now properly resolved
-        if (!SessionManager.validateMessage(peerId, packet.header.messageNumber)) {
-            throw IllegalStateException("Replay attack detected — message #${packet.header.messageNumber} already seen")
+        // Derive ratchetKeyId from the DH public key in the header.
+        // This resets per DH ratchet step, which is exactly the epoch boundary
+        // that message numbers reset on — matching how ReplayProtection is keyed.
+        val ratchetKeyId = packet.header.dhPublicKey.joinToString(separator = ":")
+
+        if (!SessionManager.validateMessage(peerId, ratchetKeyId, packet.header.messageNumber)) {
+            throw IllegalStateException(
+                "Replay attack detected — message #${packet.header.messageNumber} " +
+                "already seen for ratchet key ${ratchetKeyId.take(16)}..."
+            )
         }
 
         val encrypted = DoubleRatchet.EncryptedMessage(

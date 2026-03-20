@@ -33,6 +33,7 @@ data class SessionState(
      * Legacy overload for callers that don't have ratchetKeyId — uses a default.
      * Should be migrated away from.
      */
+    @Deprecated("Use isReplay(ratchetKeyId, messageNumber) for correct per-epoch replay protection", ReplaceWith("isReplay(ratchetKeyId, messageNumber)"))
     fun isReplay(messageNumber: Int): Boolean {
         return replayProtection.isReplay("default", messageNumber)
     }

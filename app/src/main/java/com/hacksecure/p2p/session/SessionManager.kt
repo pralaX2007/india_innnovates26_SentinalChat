@@ -23,12 +23,11 @@ object SessionManager {
         store.remove(peerId)
     }
 
-    fun validateMessage(peerId: String, messageNumber: Int): Boolean {
+    fun validateMessage(peerId: String, ratchetKeyId: String, messageNumber: Int): Boolean {
         val session = getSession(peerId) ?: return false
-        if (session.isReplay(messageNumber)) {
+        if (session.isReplay(ratchetKeyId, messageNumber)) {
             return false
         }
-        session.recordMessage(messageNumber)
         return true
     }
 
