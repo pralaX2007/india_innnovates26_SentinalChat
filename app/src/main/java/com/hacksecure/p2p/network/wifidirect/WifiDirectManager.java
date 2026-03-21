@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.net.MacAddress;
 import android.net.NetworkInfo;
 import android.net.wifi.p2p.WifiP2pConfig;
 import android.net.wifi.p2p.WifiP2pDevice;
@@ -27,6 +28,7 @@ public class WifiDirectManager {
     private final WifiP2pManager.Channel channel;
     private BroadcastReceiver receiver;
     private WifiDirectListener listener;
+    private boolean isHost = false;
 
     public interface WifiDirectListener {
         void onPeersAvailable(List<WifiP2pDevice> peers);
@@ -45,6 +47,10 @@ public class WifiDirectManager {
 
     public void setListener(WifiDirectListener listener) {
         this.listener = listener;
+    }
+
+    public void setIsHost(boolean isHost) {
+        this.isHost = isHost;
     }
 
     public void initialize() {
@@ -111,11 +117,22 @@ public class WifiDirectManager {
     }
 
     @SuppressLint("MissingPermission")
-    public void connectToPeer(WifiP2pDevice device, boolean isHost) {
-        WifiP2pConfig config = new WifiP2pConfig();
-        config.deviceAddress = device.deviceAddress;
-        config.groupOwnerIntent = isHost ? 15 : 0;
-        manager.connect(channel, config, new WifiP2pManager.ActionListener() {
+    public void connectToPeer(WifiP2pDevice device) {
+        WifiP2pConfig config;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            config = new WifiP2pConfig.Builder()
+                .setDeviceAddress(MacAddress.fromString(device.deviceAddress))
+                .setNetworkName("DIRECT-SC-SentinalChat")
+                .setPassphrase("sentinalchat2026")
+                .build();
+        } else {
+            config = new WifiP2pConfig();
+            config.deviceAddress = device.deviceAddress;
+            config.groupOwnerIntent = isHost ? 15 : 0;
+        }
+
+        final WifiP2pConfig finalConfig = config;
+        manager.connect(channel, finalConfig, new WifiP2pManager.ActionListener() {
             @Override
             public void onSuccess() { Logger.d("Connecting to " + device.deviceName); }
             @Override
@@ -127,14 +144,30 @@ public class WifiDirectManager {
 
     @SuppressLint("MissingPermission")
     public void createGroup() {
-        manager.createGroup(channel, new WifiP2pManager.ActionListener() {
-            @Override
-            public void onSuccess() { Logger.d("Group created"); }
-            @Override
-            public void onFailure(int reason) {
-                if (listener != null) listener.onError("Group creation failed: " + reason);
-            }
-        });
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            // Android 14+ requires explicit network name and passphrase
+            WifiP2pConfig config = new WifiP2pConfig.Builder()
+                .setNetworkName("DIRECT-SC-SentinalChat")
+                .setPassphrase("sentinalchat2026")
+                .build();
+            manager.createGroup(channel, config, new WifiP2pManager.ActionListener() {
+                @Override
+                public void onSuccess() { Logger.d("Group created with config"); }
+                @Override
+                public void onFailure(int reason) {
+                    if (listener != null) listener.onError("Group creation failed: " + reason);
+                }
+            });
+        } else {
+            manager.createGroup(channel, new WifiP2pManager.ActionListener() {
+                @Override
+                public void onSuccess() { Logger.d("Group created"); }
+                @Override
+                public void onFailure(int reason) {
+                    if (listener != null) listener.onError("Group creation failed: " + reason);
+                }
+            });
+        }
     }
 
     public void disconnect() {

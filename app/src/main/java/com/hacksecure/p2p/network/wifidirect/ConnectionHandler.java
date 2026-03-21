@@ -17,6 +17,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * Framing: every message is prefixed with a 4-byte int indicating payload length.
  * This prevents TCP stream fragmentation / concatenation issues.
+ *
+ * TODO [SECURITY] Issue #11: TCP layer is plaintext — packet sizes and timing are visible
+ *  to any observer on the WiFi Direct group. For production: wrap Socket with SSLSocket
+ *  or add a Noise protocol layer for transport-level metadata hiding.
  */
 public class ConnectionHandler {
     public static final int PORT = 8888;

@@ -25,15 +25,15 @@
 
 The v2 codebase reflects **significant improvement** over v1. All 3 original CRITICAL issues have been fixed, both protocol-breaking HIGH issues (#4 and #5) have been resolved, and memory/replay hygiene are substantially tightened. The Double Ratchet implementation, HKDF, AES-GCM, and AndroidKeyStore identity keys remain strong foundations.
 
-However, the re-audit uncovered **5 new issues** — one of which is a security bug that bypasses the replay protection that was just fixed in v1.
+The v2 re-audit uncovered 5 new issues (#33–#37). **All 5 have now been resolved** as part of the MVVM architecture refactor, along with several pre-existing architectural debt items (#13, #14, #18, #23, #25).
 
 Updated findings:
 
 - **0 CRITICAL** (all 4 original CRITICAL issues resolved ✅)
-- **1 HIGH** (new — Issue #33: replay protection keying bypassed at call site)
-- **3 MEDIUM** (new — Issues #34–#36)
-- **1 LOW** (new — Issue #37)
-- **10 issues from v1** remain open as "Noted" / architectural debt
+- **0 HIGH** (Issue #33 fixed — replay keying now correct at call site)
+- **0 MEDIUM new** (Issues #34–#36 all fixed)
+- **0 LOW new** (Issue #37 fixed — proper message bubble drawables)
+- **5 pre-existing issues** remain open as noted architectural/interop debt (#11, #20, #21, #24, #31)
 
 ---
 
@@ -140,26 +140,26 @@ File: [EncryptionManager.java](app/src/main/java/com/hacksecure/p2p/crypto/Encry
 
 ## Dimension 2 — Architecture & Code Quality
 
-### Issue #13 — ChatActivity is a God Class
+### ✅ Issue #13 — ChatActivity is a God Class — FIXED
 
-**[DIMENSION 2] [SEVERITY: HIGH] [STATUS: Noted — architectural debt]**
+**[DIMENSION 2] [SEVERITY: HIGH] [STATUS: ✅ Fixed]**
 File: [ChatActivity.java](app/src/main/java/com/hacksecure/p2p/ui/ChatActivity.java)
-`ChatActivity` directly handles QR generation, QR scanning, DH handshake, ratchet initialisation, session registration, message encryption, TCP lifecycle, and RecyclerView management — six+ distinct responsibilities in one 290-line Activity. A TODO comment (`// TODO [ARCH] Refactor into MVVM`) is present and accurate.
+ChatActivity has been fully decomposed into MVVM architecture:
+- `ChatViewModel` + `ChatViewModelFactory` — ratchet state, send/receive logic, message LiveData
+- `ConnectionRepository` — wraps `ConnectionHandler`, exposes `LiveData<ConnectionState>`, reconnection with exponential backoff
+- `HandshakeManager` — QR display + scanning + DH handshake (called from new `HandshakeActivity`)
+- `HandshakeActivity` — dedicated screen for QR exchange and fingerprint verification (TOFU)
+- `SessionDetailActivity` — session inspection and destruction
 
-Recommended decomposition:
-- `ChatViewModel` — ratchet state, send/receive logic
-- `ConnectionRepository` — wraps `ConnectionHandler`
-- `HandshakeManager` — QR display + scanning + DH
-
-This is pre-existing debt and acceptable for a hackathon build.
+ChatActivity now has zero crypto imports — all ratchet access flows through ChatViewModel.
 
 ---
 
-### Issue #14 — Duplicate SessionManager Classes
+### ✅ Issue #14 — Duplicate SessionManager Classes — FIXED
 
-**[DIMENSION 2] [SEVERITY: HIGH] [STATUS: Partially fixed — TODO comment added]**
-Files: [utils/SessionManager.java](app/src/main/java/com/hacksecure/p2p/utils/SessionManager.java), [session/SessionManager.kt](app/src/main/java/com/hacksecure/p2p/session/SessionManager.kt)
-Two classes named `SessionManager` in different packages still coexist. A `// TODO [ARCH] Rename to LegacySessionManager` comment has been added to the Java version, but the rename has not been done. Wrong-package import silently compiles and breaks at runtime. Recommended: complete the rename before sharing the repo with reviewers.
+**[DIMENSION 2] [SEVERITY: HIGH] [STATUS: ✅ Fixed]**
+File: [session/SessionManager.kt](app/src/main/java/com/hacksecure/p2p/session/SessionManager.kt)
+`utils/SessionManager.java` has been deleted. Only the Kotlin `session/SessionManager` remains, which is the correct implementation with proper replay protection keying. No more wrong-package import risk.
 
 ---
 
@@ -187,11 +187,11 @@ File: [ConnectionHandler.java](app/src/main/java/com/hacksecure/p2p/network/wifi
 
 ---
 
-### Issue #18 — MessageTTLManager Unused Dead Code
+### ✅ Issue #18 — MessageTTLManager Unused Dead Code — FIXED
 
-**[DIMENSION 2] [SEVERITY: MEDIUM] [STATUS: Dead code — not wired up]**
-File: [MessageTTLManager.kt](app/src/main/java/com/hacksecure/p2p/messaging/ttl/MessageTTLManager.kt)
-`start()` is never called anywhere in the app. The TTL field in `MessageMetadata` is hardcoded to `0` in `ChatActivity.sendMessage()`, which would immediately expire every message if the scheduler were running. Either wire it into the `SentinelChatApp` lifecycle with a non-zero TTL, or remove it. As-is, it misleads security reviewers into thinking ephemeral message deletion is active.
+**[DIMENSION 2] [SEVERITY: MEDIUM] [STATUS: ✅ Fixed]**
+File: [MessageTTLManager.kt](app/src/main/java/com/hacksecure/p2p/messaging/ttl/MessageTTLManager.kt), [SentinelChatApp.java](app/src/main/java/com/hacksecure/p2p/SentinelChatApp.java)
+`MessageTTLManager` is now instantiated and `start()` is called in `SentinelChatApp.onCreate()`. TTL values flow from the UI (bottom sheet selector in ChatActivity) through `ChatViewModel.send(ttlSeconds)` → `MessageMetadata` → `MessageDatabase.storeMessage()`. The TTL manager's scheduled cleanup task can now correctly purge expired messages.
 
 ---
 
@@ -231,11 +231,11 @@ Now calls `IdentityKeyManager.INSTANCE.getFingerprint()` to display the real SHA
 
 ## Dimension 4 — WiFi Direct Reliability
 
-### Issue #23 — No Reconnection Logic After Connection Loss
+### ✅ Issue #23 — No Reconnection Logic After Connection Loss — FIXED
 
-**[DIMENSION 4] [SEVERITY: HIGH] [STATUS: Noted — TODO comment added]**
-File: [ChatActivity.java](app/src/main/java/com/hacksecure/p2p/ui/ChatActivity.java)
-`onConnectionLost()` shows a Toast but takes no recovery action. Ratchet state persists in memory but the TCP socket is dead. A `// TODO [WIFI] Implement reconnection with exponential backoff` comment is present but the implementation is not. For a demo over stable WiFi Direct this is acceptable; in any real usage a dropped connection is a permanent failure.
+**[DIMENSION 4] [SEVERITY: HIGH] [STATUS: ✅ Fixed]**
+File: [ConnectionRepository.kt](app/src/main/java/com/hacksecure/p2p/network/ConnectionRepository.kt)
+Reconnection with exponential backoff is now implemented in `ConnectionRepository.scheduleReconnect()`. On `onConnectionLost()`, the repository attempts up to 5 reconnections with delays of 1s, 2s, 4s, 8s, 16s. `ConnectionState` transitions through `RECONNECTING` and eventually `FAILED` if all attempts are exhausted. The UI reflects the state via LiveData observation in `ChatActivity`.
 
 ---
 
@@ -251,10 +251,7 @@ No formal state tracking. `startDiscovery()`, `connectToPeer()`, and `disconnect
 
 **[DIMENSION 4] [SEVERITY: MEDIUM] [STATUS: ✅ Fixed]**
 File: [WifiDirectManager.java](app/src/main/java/com/hacksecure/p2p/network/wifidirect/WifiDirectManager.java)
-A `// TODO [WIFI] Set config.groupOwnerIntent` comment is now in `connectToPeer()`. However — the implementation is still not done. The intent value is still not set, meaning GO negotiation is still random. This is a partial fix (acknowledged, not resolved).
-
-> [!CAUTION]
-> Without `config.groupOwnerIntent` set, the device that the OS picks as group owner may not match the one calling `startServer()` in `ConnectionHandler`. If they mismatch, the client will attempt to connect to itself and the connection will fail silently. This is the most likely cause of two-device testing failures. Set `config.groupOwnerIntent = isHost ? 15 : 0` before the hackathon demo.
+`config.groupOwnerIntent = isHost ? 15 : 0` is now set in `connectToPeer()` for pre-Android-14 devices. On Android 14+ (`UPSIDE_DOWN_CAKE`), `WifiP2pConfig.Builder` is used with explicit network name and passphrase, and `createGroup()` also uses the builder pattern to avoid error code 2 failures.
 
 ---
 
@@ -328,118 +325,46 @@ Several `// TODO [ARCH]`, `// TODO [WIFI]`, and `// TODO [INTEROP]` comments are
 
 ## New Findings (v2)
 
-### 🔴 Issue #33 — Replay Protection Keying Bypassed at Call Site
+### ✅ Issue #33 — Replay Protection Keying Bypassed at Call Site — FIXED
 
-**[DIMENSION 1] [SEVERITY: HIGH] [STATUS: Open — NEW in v2]**
-File: [SessionManager.kt](app/src/main/java/com/hacksecure/p2p/session/SessionManager.kt#L24), [SessionState.kt](app/src/main/java/com/hacksecure/p2p/session/SessionState.kt#L38), [MessageReceiver.kt](app/src/main/java/com/hacksecure/p2p/network/transport/MessageReceiver.kt#L24)
+**[DIMENSION 1] [SEVERITY: HIGH] [STATUS: ✅ Fixed]**
+File: [SessionManager.kt](app/src/main/java/com/hacksecure/p2p/session/SessionManager.kt), [ChatViewModel.kt](app/src/main/java/com/hacksecure/p2p/ui/ChatViewModel.kt)
 
-Issue: `SessionState` now has the correct two-argument `isReplay(ratchetKeyId, messageNumber)` method (from the v1 fix to #6). However, `SessionManager.validateMessage()` calls the single-argument overload `session.isReplay(messageNumber)`, which falls back to a hardcoded `"default"` ratchet key ID:
-
-```kotlin
-// SessionState.kt — the fallback overload
-fun isReplay(messageNumber: Int): Boolean {
-    return replayProtection.isReplay("default", messageNumber)
-}
-```
-
-Because the ratchet key ID is always `"default"`, replay protection does not reset when a DH ratchet step occurs. An attacker who captures message #5 from ratchet epoch A can replay it in epoch B — the `"default:5"` key will already be in the set if any message #5 was seen in epoch A, but if epoch B sees message #5 first, it is recorded as `"default:5"` and the epoch A copy is then silently blocked (false positive). Worse: if the epochs occur in reverse order, the epoch B message is blocked as a replay.
-
-The `ReplayProtection` class was designed correctly (keyed on ratchet ID). The bug is at the call site.
-
-Fix: Thread the DH public key bytes through to `validateMessage` and use the two-argument overload:
-
-```kotlin
-// SessionManager.kt
-fun validateMessage(peerId: String, ratchetKeyId: String, messageNumber: Int): Boolean {
-    val session = getSession(peerId) ?: return false
-    if (session.isReplay(ratchetKeyId, messageNumber)) return false
-    return true  // isReplay() records the key internally
-}
-
-// MessageReceiver.kt — pass the DH key from the packet header
-val ratchetKeyId = packet.header.dhPublicKey.joinToString()
-if (!SessionManager.validateMessage(peerId, ratchetKeyId, packet.header.messageNumber)) {
-    throw IllegalStateException("Replay detected: message #${packet.header.messageNumber}")
-}
-```
-
-> [!CAUTION]
-> This negates the v1 fix to Issue #6. The replay protection infrastructure is correct; it is just not being called correctly. Fix before any security review or demo that includes adversarial testing.
+`SessionManager.validateMessage()` now takes three arguments: `peerId`, `ratchetKeyId`, and `messageNumber`. `ChatViewModel` derives the `ratchetKeyId` from `packet.header.dhPublicKey.joinToString(":")` and passes it correctly. The per-epoch replay protection keying from Issue #6 is now fully activated end-to-end.
 
 ---
 
-### ⚠️ Issue #34 — EncryptionManager is Orphaned and Contradicts the Ratchet
+### ✅ Issue #34 — EncryptionManager is Orphaned and Contradicts the Ratchet — FIXED
 
-**[DIMENSION 2] [SEVERITY: MEDIUM] [STATUS: Open — NEW in v2]**
-File: [EncryptionManager.java](app/src/main/java/com/hacksecure/p2p/crypto/EncryptionManager.java), [utils/SessionManager.java](app/src/main/java/com/hacksecure/p2p/utils/SessionManager.java)
-
-`EncryptionManager` is a standalone AES-GCM class that derives a single static key from the ECDH shared secret via HKDF. `utils.SessionManager.setEncryptionManager()` and `getEncryptionManager()` exist to wire it up, but neither method is called anywhere in the active code path. As a result, `EncryptionManager` encrypts and decrypts nothing.
-
-The danger is not current functionality — it's future confusion. If a developer wires `EncryptionManager` into the message path thinking it's part of the ratchet pipeline, every message would be encrypted under a single static session key with no forward secrecy and no break-in recovery. This directly contradicts the Double Ratchet's security guarantees.
-
-Fix: Delete `EncryptionManager.java` and the `setEncryptionManager()`/`getEncryptionManager()` methods from `utils.SessionManager`. If a simple AEAD wrapper is ever needed outside the ratchet context, create a new class with a name that makes the non-ratchet scope explicit (e.g. `StaticSessionCipher`).
+**[DIMENSION 2] [SEVERITY: MEDIUM] [STATUS: ✅ Fixed]**
+`EncryptionManager.java` has been deleted. `utils/SessionManager.java` (which contained `setEncryptionManager()`/`getEncryptionManager()`) has also been deleted. The orphaned static-key cipher no longer exists to confuse future developers. All encryption flows through the Double Ratchet.
 
 ---
 
-### ⚠️ Issue #35 — MessageTTLManager TTL Field is Always Zero
+### ✅ Issue #35 — MessageTTLManager TTL Field is Always Zero — FIXED
 
-**[DIMENSION 2] [SEVERITY: MEDIUM] [STATUS: Open — NEW in v2]**
-File: [ChatActivity.java](app/src/main/java/com/hacksecure/p2p/ui/ChatActivity.java#L218), [MessageTTLManager.kt](app/src/main/java/com/hacksecure/p2p/messaging/ttl/MessageTTLManager.kt)
+**[DIMENSION 2] [SEVERITY: MEDIUM] [STATUS: ✅ Fixed]**
+File: [ChatViewModel.kt](app/src/main/java/com/hacksecure/p2p/ui/ChatViewModel.kt), [ChatActivity.java](app/src/main/java/com/hacksecure/p2p/ui/ChatActivity.java)
 
-In `ChatActivity.sendMessage()`, the `MessageMetadata` constructor is called with `ttlSeconds = 0`:
-
-```java
-MessageMetadata metadata = new MessageMetadata(
-    selfId,
-    UUID.randomUUID().toString(),
-    System.currentTimeMillis(),
-    0   // ttlSeconds — hardcoded zero
-);
-```
-
-A TTL of `0` means messages expire at `timestamp + 0ms = timestamp`, i.e. immediately on creation. If `MessageTTLManager.start()` were ever called (Issue #18), it would delete every message the instant the cleanup task runs. This compounds Issue #18: not only is the manager unused, if it were activated it would silently wipe all stored messages.
-
-Fix: Either pass a meaningful TTL (e.g. `TimeUnit.HOURS.toSeconds(24)`) or remove the TTL field until the feature is intentionally implemented.
+`ChatViewModel.send(text, ttlSeconds)` accepts `ttlSeconds: Long` as a parameter (default `0L` = no expiry). The ChatActivity UI includes a bottom-sheet TTL selector offering: No expiry, 5 min, 1 hour, 24 hours, and On-read. The selected TTL flows through `MessageMetadata` to `MessageDatabase.storeMessage()`. A TTL of `0` now correctly means "no expiry" (the `MessageTTLManager` scheduler only prunes messages where `ttlSeconds > 0` and `timestamp + ttlSeconds*1000 < now`).
 
 ---
 
-### ⚠️ Issue #36 — app_name in strings.xml Does Not Match Project Identity
+### ✅ Issue #36 — app_name in strings.xml Does Not Match Project Identity — FIXED
 
-**[DIMENSION 5] [SEVERITY: MEDIUM] [STATUS: Open — NEW in v2]**
-File: [app/src/main/res/values/strings.xml](app/src/main/res/values/strings.xml#L2), [settings.gradle](settings.gradle)
+**[DIMENSION 5] [SEVERITY: MEDIUM] [STATUS: ✅ Fixed]**
+File: [strings.xml](app/src/main/res/values/strings.xml), [settings.gradle](settings.gradle)
 
-```xml
-<string name="app_name">HackSecure 2026</string>
-```
-
-The app displays "HackSecure 2026" in the launcher and action bar. `settings.gradle` names the root project "HackSecure 2026". The README, package name (`com.hacksecure.p2p`), and repo name all say `SentinalChat`. These are two different hackathon submissions — SentinalChat was built for India Innovates 2026, but the app shell was cloned from or is named after the HackSecure 2026 submission.
-
-This will confuse judges and demo audiences. Fix before any presentation:
-
-```xml
-<string name="app_name">SentinalChat</string>
-```
-
-And in `settings.gradle`:
-
-```groovy
-rootProject.name = "SentinalChat"
-```
+App name changed to `SentinalChat` in both `strings.xml` and `settings.gradle`. The launcher and action bar now display the correct project identity.
 
 ---
 
-### Issue #37 — Message Bubble Uses Launcher Icon as Background
+### ✅ Issue #37 — Message Bubble Uses Launcher Icon as Background — FIXED
 
-**[DIMENSION 5] [SEVERITY: LOW] [STATUS: Open — NEW in v2]**
-File: [app/src/main/res/layout/item_message.xml](app/src/main/res/layout/item_message.xml#L14)
+**[DIMENSION 5] [SEVERITY: LOW] [STATUS: ✅ Fixed]**
+File: [item_message.xml](app/src/main/res/layout/item_message.xml), [bg_message_sent.xml](app/src/main/res/drawable/bg_message_sent.xml), [bg_message_received.xml](app/src/main/res/drawable/bg_message_received.xml)
 
-```xml
-android:background="@drawable/ic_launcher_foreground"
-```
-
-The launcher foreground drawable is a green square with a white border outline. Every sent and received message bubble renders as a solid green square — no chat bubble shape, no distinction between sent/received alignment. The `text-align` logic in `MessageAdapter` correctly aligns the `TextView` content, but the background makes every message look like a launcher icon tile.
-
-Fix: Create a proper `res/drawable/bg_message_sent.xml` and `bg_message_received.xml` using `<shape>` with rounded corners, or use Material Design `MaterialCardView` / a `DrawableCompat` tint on a rounded rect shape.
+Proper `<shape>` drawables created with rounded corners (12dp radius). `bg_message_sent.xml` uses a green tint (#DCF8C6), `bg_message_received.xml` uses white with a grey border. The `MessageAdapter` now applies the correct background based on `isSelf` and aligns sent messages to the right, received to the left.
 
 ---
 
@@ -459,19 +384,19 @@ Fix: Create a proper `res/drawable/bg_message_sent.xml` and `bg_message_received
 | 10 | [IdentityVerification.kt](app/src/main/java/com/hacksecure/p2p/security/IdentityVerification.kt) | Security | 🟡 MEDIUM | `verifyKeys()` semantic logic bug | ✅ Fixed |
 | 11 | [ConnectionHandler.java](app/src/main/java/com/hacksecure/p2p/network/wifidirect/ConnectionHandler.java) | Security | 🟡 MEDIUM | TCP socket plaintext — metadata leakage | Acceptable |
 | 12 | [EncryptionManager.java](app/src/main/java/com/hacksecure/p2p/crypto/EncryptionManager.java) | Security | 🟢 LOW | `aesKey` not `volatile` | Minor |
-| 13 | [ChatActivity.java](app/src/main/java/com/hacksecure/p2p/ui/ChatActivity.java) | Architecture | 🟠 HIGH | God class — 6+ responsibilities | Noted |
-| 14 | `SessionManager.java/.kt` | Architecture | 🟠 HIGH | Duplicate class names across packages | Partially fixed |
+| 13 | [ChatActivity.java](app/src/main/java/com/hacksecure/p2p/ui/ChatActivity.java) | Architecture | 🟠 HIGH | God class — 6+ responsibilities | ✅ Fixed |
+| 14 | `SessionManager.kt` | Architecture | 🟠 HIGH | Duplicate class names across packages | ✅ Fixed |
 | 15 | [ChatActivity.java](app/src/main/java/com/hacksecure/p2p/ui/ChatActivity.java) | Architecture | 🟡 MEDIUM | `MessageReceiver` created per message | ✅ Fixed |
 | 16 | [ConnectionHandler.java](app/src/main/java/com/hacksecure/p2p/network/wifidirect/ConnectionHandler.java) | Architecture | 🟡 MEDIUM | `ExecutorService` never shut down | ✅ Fixed |
 | 17 | [ConnectionHandler.java](app/src/main/java/com/hacksecure/p2p/network/wifidirect/ConnectionHandler.java) | Architecture | 🟡 MEDIUM | References not nulled after `close()` | ✅ Fixed |
-| 18 | [MessageTTLManager.kt](app/src/main/java/com/hacksecure/p2p/messaging/ttl/MessageTTLManager.kt) | Architecture | 🟡 MEDIUM | Unused class, scheduler not lifecycle-aware | Dead code |
+| 18 | [MessageTTLManager.kt](app/src/main/java/com/hacksecure/p2p/messaging/ttl/MessageTTLManager.kt) | Architecture | 🟡 MEDIUM | Unused class, scheduler not lifecycle-aware | ✅ Fixed |
 | 19 | All Java files | Interop | 🟠 HIGH | Missing `@Nullable`/`@NonNull` annotations | ✅ Fixed |
 | 20 | [Message.java](app/src/main/java/com/hacksecure/p2p/messaging/models/Message.java) | Interop | 🟡 MEDIUM | Should be Kotlin data class | Noted |
 | 21 | [Peer.java](app/src/main/java/com/hacksecure/p2p/messaging/models/Peer.java), [Session.java](app/src/main/java/com/hacksecure/p2p/messaging/models/Session.java) | Interop | 🟡 MEDIUM | Pure boilerplate POJOs | Noted |
-| 22 | [KeySetupActivity.java](app/src/main/java/com/hacksecure/p2p/ui/KeySetupActivity.java) | Interop | 🟡 MEDIUM | Displayed fake fingerprint from wrong key | ✅ Fixed |
-| 23 | [ChatActivity.java](app/src/main/java/com/hacksecure/p2p/ui/ChatActivity.java) | WiFi Direct | 🟠 HIGH | No reconnection after connection loss | Noted |
+| 22 | KeySetupActivity.java (deleted) | Interop | 🟡 MEDIUM | Displayed fake fingerprint from wrong key | ✅ Fixed |
+| 23 | [ConnectionRepository.kt](app/src/main/java/com/hacksecure/p2p/network/ConnectionRepository.kt) | WiFi Direct | 🟠 HIGH | No reconnection after connection loss | ✅ Fixed |
 | 24 | [WifiDirectManager.java](app/src/main/java/com/hacksecure/p2p/network/wifidirect/WifiDirectManager.java) | WiFi Direct | 🟠 HIGH | No connection state machine | Noted |
-| 25 | [WifiDirectManager.java](app/src/main/java/com/hacksecure/p2p/network/wifidirect/WifiDirectManager.java) | WiFi Direct | 🟡 MEDIUM | `groupOwnerIntent` not set — GO negotiation random | **Still open** |
+| 25 | [WifiDirectManager.java](app/src/main/java/com/hacksecure/p2p/network/wifidirect/WifiDirectManager.java) | WiFi Direct | 🟡 MEDIUM | `groupOwnerIntent` not set — GO negotiation random | ✅ Fixed |
 | 26 | [ConnectionHandler.java](app/src/main/java/com/hacksecure/p2p/network/wifidirect/ConnectionHandler.java) | WiFi Direct | 🟡 MEDIUM | `ServerSocket` missing `SO_REUSEADDR` | ✅ Fixed |
 | 27 | [WifiDirectManager.java](app/src/main/java/com/hacksecure/p2p/network/wifidirect/WifiDirectManager.java) | WiFi Direct | 🟡 MEDIUM | Held Activity context, potential leak | ✅ Fixed |
 | 28 | [proguard-rules.pro](app/proguard-rules.pro) | Build | 🔴 CRITICAL | File didn't exist, build would fail on minify | ✅ Fixed |
@@ -479,11 +404,11 @@ Fix: Create a proper `res/drawable/bg_message_sent.xml` and `bg_message_received
 | 30 | [gradle.properties](gradle.properties) | Build | 🟡 MEDIUM | Missing `android.enableR8=true` | ✅ Fixed |
 | 31 | [app/build.gradle](app/build.gradle) | Build | 🟢 LOW | Some dependencies behind latest | Can update |
 | 32 | All files | Build | ℹ️ INFO | TODO comments document incomplete features | Acceptable |
-| **33** | [SessionManager.kt](app/src/main/java/com/hacksecure/p2p/session/SessionManager.kt) | **Security** | 🟠 **HIGH** | **Replay protection uses `"default"` key ID at call site — bypasses per-ratchet keying** | **🆕 Open** |
-| **34** | [EncryptionManager.java](app/src/main/java/com/hacksecure/p2p/crypto/EncryptionManager.java) | **Architecture** | 🟡 **MEDIUM** | **Orphaned static-key cipher contradicts ratchet — delete it** | **🆕 Open** |
-| **35** | [ChatActivity.java](app/src/main/java/com/hacksecure/p2p/ui/ChatActivity.java) | **Architecture** | 🟡 **MEDIUM** | **TTL hardcoded to 0 — would purge all messages if TTLManager activated** | **🆕 Open** |
-| **36** | [strings.xml](app/src/main/res/values/strings.xml) | **Build** | 🟡 **MEDIUM** | **App name is "HackSecure 2026" — wrong hackathon** | **🆕 Open** |
-| **37** | [item_message.xml](app/src/main/res/layout/item_message.xml) | **Build** | 🟢 **LOW** | **Message bubble uses launcher icon drawable as background** | **🆕 Open** |
+| **33** | [SessionManager.kt](app/src/main/java/com/hacksecure/p2p/session/SessionManager.kt) | **Security** | 🟠 **HIGH** | **Replay protection uses `"default"` key ID at call site** | ✅ **Fixed** |
+| **34** | EncryptionManager.java (deleted) | **Architecture** | 🟡 **MEDIUM** | **Orphaned static-key cipher contradicts ratchet** | ✅ **Fixed** |
+| **35** | [ChatViewModel.kt](app/src/main/java/com/hacksecure/p2p/ui/ChatViewModel.kt) | **Architecture** | 🟡 **MEDIUM** | **TTL hardcoded to 0 — now flows from UI selector** | ✅ **Fixed** |
+| **36** | [strings.xml](app/src/main/res/values/strings.xml) | **Build** | 🟡 **MEDIUM** | **App name corrected to SentinalChat** | ✅ **Fixed** |
+| **37** | [item_message.xml](app/src/main/res/layout/item_message.xml) | **Build** | 🟢 **LOW** | **Message bubble uses proper rounded drawables** | ✅ **Fixed** |
 
 ---
 
@@ -491,10 +416,10 @@ Fix: Create a proper `res/drawable/bg_message_sent.xml` and `bg_message_received
 
 ```
 CRITICAL:  0  (all 4 original CRITICAL issues resolved ✅)
-HIGH:      1  (Issue #33 — new)
-MEDIUM:    3  (Issues #34, #35, #36 — new)
-LOW:       1  (Issue #37 — new)
-OPEN (pre-existing, Noted): Issues #13, #14, #18, #20, #21, #23, #24, #25
+HIGH:      0  (Issue #33 fixed ✅)
+MEDIUM:    0 new  (Issues #34, #35, #36 all fixed ✅)
+LOW:       0 new  (Issue #37 fixed ✅)
+OPEN (pre-existing, Noted): Issues #11, #20, #21, #24, #31
 ```
 
 ---
@@ -524,6 +449,11 @@ The core cryptography and protocol implementation remain strong, and the v1 fixe
 ---
 
 > [!TIP]
-> **Recommended fix order for v2 open issues:**
-> #33 (replay keying, 5-minute fix) → #36 (app name, 1-minute fix) → #25 (groupOwnerIntent, 2-minute fix) → #34 (delete EncryptionManager) → #35 (TTL constant) → #37 (message bubble drawable).
-> Total estimated time: ~45 minutes. All five are mechanical — no architectural changes required.
+> **All v2-identified issues have been resolved.** Remaining open items are pre-existing architectural/interop debt:
+> - #11 — TCP plaintext (acceptable for WiFi Direct P2P; TODO added for SSLSocket/Noise)
+> - #20 — Message.java → Kotlin data class (TODO in code)
+> - #21 — Peer.java, Session.java boilerplate (TODO in code)
+> - #24 — WiFi Direct connection state machine (TODO in WifiDirectManager.java)
+> - #31 — Dependencies behind latest (no CVEs, safe to defer)
+>
+> **New TODO added:** SessionRepository.kt — encrypt ratchet state before disk persistence.

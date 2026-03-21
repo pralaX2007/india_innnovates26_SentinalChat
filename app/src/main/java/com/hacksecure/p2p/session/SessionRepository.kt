@@ -13,6 +13,8 @@ class SessionRepository(
 ) {
 
     fun saveSession(peerId: String, identityKey: ByteArray, startTime: Long) {
+        // TODO [SECURITY] Encrypt ratchet state bytes before disk persistence — storing
+        //  plaintext ratchet state to SessionDatabase allows key extraction from a rooted device.
         val gson = Gson()
         val ratchetState = SessionManager.getSession(peerId)
             ?.let { RatchetState.fromRatchet(it.ratchet).encode() }

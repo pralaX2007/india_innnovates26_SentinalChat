@@ -56,15 +56,18 @@ public class DeviceDiscoveryActivity extends AppCompatActivity implements WifiDi
 
         wifiDirectManager = new WifiDirectManager(this);
         wifiDirectManager.setListener(this);
+        wifiDirectManager.setIsHost(isHost);
         wifiDirectManager.initialize();
 
         btnHost.setOnClickListener(v -> {
             isHost = true;
+            wifiDirectManager.setIsHost(true);
             checkPermissionsAndStart();
         });
 
         btnJoin.setOnClickListener(v -> {
             isHost = false;
+            wifiDirectManager.setIsHost(false);
             checkPermissionsAndStart();
         });
 
@@ -126,9 +129,9 @@ public class DeviceDiscoveryActivity extends AppCompatActivity implements WifiDi
     private void onPeerClicked(WifiP2pDevice device) {
         WifiP2pDevice verifiedPeer = peerDiscovery.findPeerByAddress(device.deviceAddress);
         if (verifiedPeer != null) {
-            wifiDirectManager.connectToPeer(verifiedPeer, isHost);
+            wifiDirectManager.connectToPeer(verifiedPeer);
         } else {
-            wifiDirectManager.connectToPeer(device, isHost);
+            wifiDirectManager.connectToPeer(device);
         }
     }
 
